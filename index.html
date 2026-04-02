@@ -254,9 +254,30 @@
         <div class="sidebar-section">
             <h3 class="section-title">Terjemahan</h3>
             <div class="options-box">
-                <div class="option-row"><label>Asal</label><select id="langSource" class="select-box"><option value="Japanese">Jepang (JP)</option><option value="Korean">Korea (KR)</option><option value="Chinese">China (CN)</option><option value="English">Inggris (EN)</option></select></div>
-                <div class="option-row"><label>Tujuan</label><select id="langTarget" class="select-box"><option value="Indonesian">Indonesia (ID)</option><option value="English">Inggris (EN)</option></select></div>
+                <div class="option-row">
+                    <label>Asal</label>
+                    <select id="langSource" class="select-box">
+                        <option value="Auto">Deteksi Otomatis</option>
+                        <option value="Japanese">Jepang (JP)</option>
+                        <option value="Korean">Korea (KR)</option>
+                        <option value="Chinese">China (CN)</option>
+                        <option value="English">Inggris (EN)</option>
+                    </select>
+                </div>
+                <div class="option-row">
+                    <label>Tujuan</label>
+                    <select id="langTarget" class="select-box">
+                        <option value="Indonesian">Indonesia (ID)</option>
+                        <option value="English">Inggris (EN)</option>
+                        <option value="Tagalog">Tagalog (TL)</option>
+                        <option value="Manual">Masukan Manual</option>
+                    </select>
+                </div>
+                <div class="option-row" id="manualTargetRow" style="display: none; margin-top: 5px;">
+                    <input type="text" id="manualTargetLang" class="select-box" placeholder="Ketik bahasa tujuan..." style="width: 100%;">
+                </div>
             </div>
+            <div id="detectedLangBox" style="display: none; font-size: 11px; color: var(--accent); text-align: center; margin-top: 5px; font-weight: bold;">Terdeteksi: <span id="detectedLangText"></span></div>
             <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan</button>
         </div>
         
@@ -273,7 +294,10 @@
     <!-- WORKSPACE -->
     <main class="workspace-area">
         <div class="canvas-toolbar">
-            <span id="canvasResolution">Resolusi: 800x1200 px</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="canvasResolution" style="display:none;">800x1200</span>
+                <input type="text" id="comicTitle" class="select-box" placeholder="Judul Komik (Otomatis/Manual)" style="width: 250px; font-weight: bold; background: transparent; border-color: transparent;">
+            </div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <button id="btnZoomOut" class="btn-icon"><span class="material-icons-round">zoom_out</span></button>
                 <span id="zoomText" style="font-weight: 600; color: var(--text-main);">100%</span>
@@ -468,8 +492,24 @@
             const scaleX = imgEl.naturalWidth / rectImg.width;
             const scaleY = imgEl.naturalHeight / rectImg.height;
 
+            // Ambil bahasa tujuan untuk penamaan folder hasil
+            let targetDropdown = document.getElementById('langTarget');
+            let targetLang = targetDropdown.value;
+            
+            if (targetLang === 'Manual') {
+                targetLang = document.getElementById('manualTargetLang').value.trim();
+                if (!targetLang) targetLang = "Custom";
+            } else {
+                // Ambil teks label dari dropdown (contoh: "Indonesia (ID)" -> "Indonesia")
+                targetLang = targetDropdown.options[targetDropdown.selectedIndex].text.split(' ')[0];
+            }
+            
+            const comicTitle = document.getElementById('comicTitle').value.trim();
+
             const exportData = {
                 fileName: window.currentFileName,
+                target_lang: targetLang,
+                comicTitle: comicTitle,
                 elements: []
             };
 
@@ -520,6 +560,15 @@
         });
 
         // ==== FITUR TERJEMAHAN OTOMATIS (API GEMINI) ====
+        document.getElementById('langTarget').addEventListener('change', (e) => {
+            const manualRow = document.getElementById('manualTargetRow');
+            if (e.target.value === 'Manual') {
+                manualRow.style.display = 'block';
+            } else {
+                manualRow.style.display = 'none';
+            }
+        });
+
         document.getElementById('btnTranslate').addEventListener('click', async () => {
             if (!artboard.querySelector('img') || !window.currentFileName) {
                 alert("Silakan upload atau buka gambar komik terlebih dahulu!");
@@ -531,7 +580,18 @@
             btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Memindai...';
             btn.disabled = true;
             
-            const targetLang = document.getElementById('langTarget').value;
+            const sourceLang = document.getElementById('langSource').value;
+            let targetLang = document.getElementById('langTarget').value;
+            
+            if (targetLang === 'Manual') {
+                targetLang = document.getElementById('manualTargetLang').value.trim();
+                if (!targetLang) {
+                    alert("Masukkan bahasa tujuan secara manual!");
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                    return;
+                }
+            }
 
             try {
                 const response = await fetch('/process_ocr', {
@@ -539,6 +599,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         filename: window.currentFileName,
+                        source_lang: sourceLang,
                         target_lang: targetLang
                     })
                 });
@@ -548,6 +609,11 @@
                 if (data.error) {
                     alert("API Error: " + data.error);
                 } else if (data.translations && data.translations.length > 0) {
+                    // Set judul otomatis dari Gemini jika ada
+                    if (data.title) {
+                        document.getElementById('comicTitle').value = data.title;
+                    }
+                    
                     // Berhasil mendapatkan terjemahan, buat kotak teks untuk masing-masing
                     data.translations.forEach((text, i) => {
                         const textDiv = document.createElement('div');
@@ -566,6 +632,16 @@
                         // Warnai otomatis
                         updateDominantColor(textDiv);
                     });
+                    
+                    // Tampilkan bahasa asal yang terdeteksi jika pakai Auto
+                    const detectedBox = document.getElementById('detectedLangBox');
+                    if (sourceLang === 'Auto' && data.detected_language) {
+                        document.getElementById('detectedLangText').innerText = data.detected_language;
+                        detectedBox.style.display = 'block';
+                    } else {
+                        detectedBox.style.display = 'none';
+                    }
+
                     alert(`Berhasil menerjemahkan ${data.translations.length} teks!`);
                 } else {
                     alert("Tidak ada teks yang berhasil dideteksi.");

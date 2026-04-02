@@ -81,8 +81,7 @@ def call_gemini_api(payload):
 
     return {"error": "Semua model Gemini gagal dihubungi."}
 
-def call_gemini_vision(image_path, target_lang="Indonesian"):
-    # ... (kode call_gemini_vision tetap sama) ...
+def call_gemini_vision(image_path, target_lang="Indonesian", source_lang="Auto"):
     mime_type, _ = mimetypes.guess_type(image_path)
     if not mime_type: mime_type = "image/jpeg"
     
@@ -92,7 +91,8 @@ def call_gemini_vision(image_path, target_lang="Indonesian"):
     except Exception as e:
         return {"error": f"Gagal membaca gambar: {e}"}
         
-    prompt = f"Extract all text from this comic page and translate it to {target_lang}. IMPORTANT: Maintain the original sentence structure, expressions, and tone. Return JSON: {{'translations': ['text1', 'text2']}}"
+    source_instruction = f"The source text is in {source_lang}." if source_lang != "Auto" else "Auto-detect the source language of the text."
+    prompt = f"Extract all text from this comic page. {source_instruction} Translate it to {target_lang}. IMPORTANT: Maintain the original tone and context. Adapt the language, idioms, and expressions so they sound completely natural and localized for native speakers of {target_lang}. Based on the context and translated text, suggest a short, catchy, and highly relevant title for this comic page in {target_lang}. Return JSON: {{'translations': ['text1', 'text2'], 'detected_language': 'language name', 'title': 'Suggested Title'}}"
     
     payload = {
         "contents": [{
@@ -170,6 +170,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 
                 filename = data.get('filename')
                 target_lang = data.get('target_lang', 'Indonesian')
+                source_lang = data.get('source_lang', 'Auto')
                 
                 if not filename:
                     raise ValueError("Filename tidak ditemukan")
@@ -179,7 +180,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     raise FileNotFoundError(f"File {source_path} tidak ditemukan.")
 
                 # Panggil Gemini API
-                result = call_gemini_vision(source_path, target_lang)
+                result = call_gemini_vision(source_path, target_lang, source_lang)
                 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
@@ -265,8 +266,33 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                         current_y += line_heights[i] + line_spacing
                 
                 # Simpan Hasil HD
-                output_filename = "hasil_" + os.path.basename(data['fileName'])
-                output_path = os.path.join(OUTPUT_DIR, output_filename)
+                target_lang = data.get('target_lang')
+                if not target_lang or target_lang.strip() == "":
+                    target_lang = "Hasil_Export"
+                
+                # Ubah jadi Capitalize (Contoh: jawa -> Jawa)
+                target_lang = target_lang.strip().capitalize()
+                
+                # Pastikan nama folder aman (hanya alfanumerik, spasi, dash, underscore)
+                safe_lang = "".join([c for c in target_lang if c.isalnum() or c in (' ', '_', '-')]).strip()
+                if not safe_lang: safe_lang = "Hasil_Export"
+                
+                lang_dir = os.path.join(OUTPUT_DIR, safe_lang)
+                os.makedirs(lang_dir, exist_ok=True)
+
+                comic_title = data.get('comicTitle', '').strip()
+                original_ext = os.path.splitext(data['fileName'])[1]
+                
+                if comic_title:
+                    # Bersihkan nama judul untuk nama file yang aman
+                    safe_title = "".join([c for c in comic_title if c.isalnum() or c in (' ', '_', '-')]).strip()
+                    # Ganti spasi dengan underscore untuk nama file yang lebih baik
+                    safe_title = safe_title.replace(' ', '_')
+                    output_filename = f"{safe_title}{original_ext}"
+                else:
+                    output_filename = "hasil_" + os.path.basename(data['fileName'])
+                    
+                output_path = os.path.join(lang_dir, output_filename)
                 img.save(output_path, quality=95)
                 
                 # Respon Sukses
