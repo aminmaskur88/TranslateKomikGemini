@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Komik Editor Pro - All in One</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            --bg-app: #f4f6f8; --bg-panel: #ffffff; --bg-workspace: #e1e4e8;
+            --border-color: #d1d5db; --text-main: #1f2937; --text-muted: #6b7280;
+            --accent: #2563eb; --accent-hover: #1d4ed8; --item-hover: #f3f4f6;
+            --item-active: #eef2ff; --canvas-bg: #ffffff;
+            --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-app: #111111; --bg-panel: #1e1e1e; --bg-workspace: #161616;
+                --border-color: #333333; --text-main: #e5e5e5; --text-muted: #888888;
+                --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
+                --item-active: #2a3a50; --canvas-bg: #e0e0e0;
+                --shadow-canvas: 0 4px 20px rgba(0, 0, 0, 0.5);
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-app);
+            color: var(--text-main); height: 100vh; overflow: hidden;
+            display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 280px 1fr;
+            grid-template-areas: "header header" "sidebar workspace";
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .header-area { grid-area: header; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; z-index: 10; }
+        .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+        .logo .material-icons-round { color: var(--accent); }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .sidebar-area { grid-area: sidebar; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-section { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; }
+        .divider-horizontal { height: 1px; background-color: var(--border-color); width: 100%; }
+        .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .tool-btn {
+            display: flex; flex-direction: column; align-items: center; gap: 8px; background-color: var(--bg-app); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 14px 10px; color: var(--text-main); cursor: pointer; font-size: 12px; transition: all 0.2s;
+        }
+        .tool-btn:hover { background-color: var(--item-hover); }
+        .tool-btn.active { background-color: var(--item-active); border-color: var(--accent); color: var(--accent); }
+        .options-box { background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .option-row { display: flex; align-items: center; justify-content: space-between; }
+        .select-box { background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none; }
+        .workspace-area { grid-area: workspace; background-color: var(--bg-workspace); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .canvas-toolbar { height: 42px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 12px; }
+        .canvas-wrapper { 
+            flex: 1; 
+            overflow: hidden; /* Menghilangkan scrolling sama sekali */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; /* Memastikan gambar pas di tengah */
+            padding: 10px; /* Mengurangi jarak tepi secara drastis */
+            background-color: var(--bg-workspace);
+        }
+        .artboard {
+            background-color: var(--canvas-bg);
+            box-shadow: var(--shadow-canvas);
+            border: 1px solid var(--border-color);
+            position: relative;
+            display: inline-flex; /* Membuat bingkai putih menempel ketat (shrink-wrap) */
+            justify-content: center;
+            align-items: center;
+            max-width: 100%;
+            max-height: 100%; /* Bingkai tidak akan melebihi area layar yang tersisa */
+            /* Ukuran awal untuk placeholder */
+            min-width: 300px;
+            min-height: 400px;
+        }
+        .artboard img { 
+            display: block;
+            max-width: 100%; 
+            max-height: 100%; /* Gambar mengecil mengikuti bingkai maksimal */
+            width: auto;
+            height: auto;
+        }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 4px; display: flex; align-items: center; transition: all 0.2s; }
+        .btn-icon:hover { background-color: var(--item-hover); color: var(--text-main); }
+        .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        
+        /* Tooltip Mode Pengembang (Muncul saat di-hold) */
+        .hold-tooltip {
+            display: none;
+            position: fixed;
+            background: #374151;
+            color: #10b981; /* Warna hijau terang untuk tulisan info */
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: monospace;
+            z-index: 9999;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid #10b981;
+        }
+
+        /* Deklarasi Font Custom */
+        @font-face {
+            font-family: 'ComicNeue';
+            src: url('/Font/ComicNeue-Bold.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        /* Gaya Teks Komik (Alat Edit) */
+        .comic-text {
+            position: absolute;
+            min-width: 60px;
+            min-height: 24px;
+            padding: 4px 8px;
+            font-size: 16px;
+            font-family: 'ComicNeue', sans-serif;
+            font-weight: bold;
+            color: #1a1a1a;
+            background-color: transparent;
+            border: 1px dashed rgba(0, 0, 0, 0.4);
+            border-radius: 4px;
+            cursor: grab;
+            z-index: 50;
+            outline: none;
+            user-select: none;
+            touch-action: none; /* Mencegah layar scroll saat digeser di HP */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.2;
+            transition: background-color 0.2s;
+            /* Tambahan untuk Resizing */
+            resize: both;
+            overflow: hidden; /* Wajib ada untuk resize */
+            
+            /* Perataan Tengah (Horizontal & Vertikal) */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-transform: uppercase; /* Paksa huruf kapital di tampilan browser */
+        }
+        .comic-text:focus {
+            cursor: text;
+            border: 1px solid var(--accent);
+            background-color: rgba(255, 255, 255, 0.8); /* Agak putih agar teks terlihat saat ngedit */
+            user-select: text; /* Izinkan teks di-block (select) saat sedang mengetik */
+            /* Pastikan resize handle selalu terlihat saat aktif edit */
+            resize: both;
+        }
+        .comic-text:active {
+            cursor: grabbing;
+        }
+        
+        /* Ubah ukuran handle bawaan browser biar lebih jelas (Khusus Webkit/Chrome) */
+        .comic-text::-webkit-resizer {
+            background-color: var(--accent);
+            outline: 2px solid white;
+            border-radius: 50%;
+            cursor: nwse-resize;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: var(--bg-panel); padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;
+            max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column;
+        }
+        .file-item {
+            padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;
+        }
+        .file-item:hover { background: var(--item-hover); }
+        .file-item:last-child { border-bottom: none; }
+
+        @media (max-width: 768px) {
+            body { 
+                height: auto; 
+                min-height: 100vh;
+                overflow-y: auto; /* Mengizinkan seluruh layar di-scroll ke bawah */
+                grid-template-rows: 52px auto auto; /* Menyesuaikan dengan tinggi kontennya */
+                grid-template-columns: 1fr; 
+                grid-template-areas: "header" "workspace" "sidebar"; 
+            }
+            .workspace-area {
+                min-height: 50vh; /* Memberikan ruang yang cukup untuk gambar minimal setengah layar */
+            }
+            .sidebar-area { 
+                border-right: none; 
+                border-top: 1px solid var(--border-color); 
+                flex-direction: row; 
+                flex-wrap: wrap; /* Tombol jatuh ke baris baru */
+                overflow: visible; 
+                padding: 10px;
+                gap: 10px;
+                justify-content: center;
+                align-items: flex-start;
+            }
+            .sidebar-section { 
+                min-width: 140px; 
+                flex: 1 1 140px; 
+                padding: 5px; 
+            }
+            .divider-horizontal { display: none; } 
+            .artboard { width: 90%; height: auto; aspect-ratio: 1/1.4; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hidden Input for File Upload -->
+    <input type="file" id="fileUploadInput" accept="image/*" style="display: none;">
+
+    <!-- Modal "Buka File" dari @bahan/ -->
+    <div id="fileModal" class="modal-overlay">
+        <div class="modal-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 15px;">Pilih dari @bahan</h3>
+                <button id="closeModalBtn" class="btn-icon"><span class="material-icons-round">close</span></button>
+            </div>
+            <div id="fileListContainer">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="header-area">
+        <div class="logo"><span class="material-icons-round">edit_document</span> <span>TranslateKomik</span></div>
+        <div class="header-actions">
+            <button id="btnExport" class="btn-primary"><span class="material-icons-round">download</span> Export</button>
+        </div>
+    </header>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar-area">
+        <div class="sidebar-section">
+            <h3 class="section-title">File</h3>
+            <div class="tool-grid">
+                <button class="tool-btn active" id="btnUpload">
+                    <span class="material-icons-round">upload_file</span><span>Upload</span>
+                </button>
+                <button class="tool-btn" id="btnBuka">
+                    <span class="material-icons-round">folder_open</span><span>Buka</span>
+                </button>
+            </div>
+            <!-- Progress indicator -->
+            <div id="uploadStatus" style="font-size: 11px; color: var(--accent); display: none; text-align: center; margin-top: 5px;">Mengupload...</div>
+        </div>
+        
+        <div class="divider-horizontal"></div>
+        <div class="sidebar-section">
+            <h3 class="section-title">Terjemahan</h3>
+            <div class="options-box">
+                <div class="option-row"><label>Asal</label><select id="langSource" class="select-box"><option value="Japanese">Jepang (JP)</option><option value="Korean">Korea (KR)</option><option value="Chinese">China (CN)</option><option value="English">Inggris (EN)</option></select></div>
+                <div class="option-row"><label>Tujuan</label><select id="langTarget" class="select-box"><option value="Indonesian">Indonesia (ID)</option><option value="English">Inggris (EN)</option></select></div>
+            </div>
+            <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan</button>
+        </div>
+        
+        <div class="divider-horizontal"></div>
+        <div class="sidebar-section">
+            <h3 class="section-title">Alat Edit</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="btnCleanBalloon" class="tool-btn" style="width: 100%; flex-direction: row; justify-content: start; padding-left: 15px;"><span class="material-icons-round">cleaning_services</span> <span>Hapus Balon</span></button>
+                <button id="btnAddText" class="tool-btn" style="width: 100%; flex-direction: row; justify-content: start; padding-left: 15px;"><span class="material-icons-round">title</span> <span>Tambah Teks</span></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- WORKSPACE -->
+    <main class="workspace-area">
+        <div class="canvas-toolbar">
+            <span id="canvasResolution">Resolusi: 800x1200 px</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button id="btnZoomOut" class="btn-icon"><span class="material-icons-round">zoom_out</span></button>
+                <span id="zoomText" style="font-weight: 600; color: var(--text-main);">100%</span>
+                <button id="btnZoomIn" class="btn-icon"><span class="material-icons-round">zoom_in</span></button>
+            </div>
+        </div>
+        
+        <div class="canvas-wrapper">
+            <div class="artboard" id="artboard">
+                <div id="artboardPlaceholder" style="text-align: center; color: var(--text-muted);">
+                    <span class="material-icons-round" style="font-size: 48px; margin-bottom: 12px; display: block;">wallpaper</span>
+                    <p style="font-weight: 600;">Area Kertas Komik</p>
+                    <small>Mulai dengan mengunggah gambar atau Buka dari folder @bahan</small>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        const btnUpload = document.getElementById('btnUpload');
+        const fileUploadInput = document.getElementById('fileUploadInput');
+        const artboard = document.getElementById('artboard');
+        const artboardPlaceholder = document.getElementById('artboardPlaceholder');
+        const uploadStatus = document.getElementById('uploadStatus');
+        
+        const btnBuka = document.getElementById('btnBuka');
+        const fileModal = document.getElementById('fileModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const fileListContainer = document.getElementById('fileListContainer');
+        const canvasResolution = document.getElementById('canvasResolution');
+
+        // ==== UPLOAD FILE (Frontend to Backend) ====
+        btnUpload.addEventListener('click', () => {
+            fileUploadInput.click();
+        });
+
+        fileUploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 1. Tampilkan Gambar di Canvas
+            showImageOnCanvas(URL.createObjectURL(file), file.name);
+
+            // 2. Upload File ke Server (@bahan)
+            uploadStatus.style.display = 'block';
+            uploadStatus.innerText = 'Mengupload ke @bahan...';
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'X-File-Name': encodeURIComponent(file.name),
+                        'Content-Type': file.type
+                    },
+                    body: file
+                });
+                const result = await response.json();
+                if(result.status === 'success') {
+                    uploadStatus.innerText = 'Berhasil diupload!';
+                    setTimeout(() => uploadStatus.style.display = 'none', 3000);
+                } else {
+                    uploadStatus.innerText = 'Gagal upload!';
+                    console.error(result);
+                }
+            } catch (err) {
+                console.error('Error uploading:', err);
+                uploadStatus.innerText = 'Error koneksi!';
+            }
+            // Reset input
+            fileUploadInput.value = '';
+        });
+
+        // ==== BUKA FILE DARI @bahan/ ====
+        btnBuka.addEventListener('click', async () => {
+            fileModal.style.display = 'flex';
+            fileListContainer.innerHTML = 'Memuat file dari folder @bahan...';
+            try {
+                const response = await fetch('/list-bahan');
+                const files = await response.json();
+                
+                if (files.length === 0) {
+                    fileListContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px 0;">Folder @bahan kosong.<br>Silakan Upload file terlebih dahulu.</p>';
+                    return;
+                }
+
+                fileListContainer.innerHTML = '';
+                files.forEach(fileName => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.innerHTML = `<span class="material-icons-round" style="color:var(--text-muted)">image</span> <span>${fileName}</span>`;
+                    div.onclick = () => {
+                        // Tampilkan gambar dari folder bahan
+                        showImageOnCanvas('/bahan/' + encodeURIComponent(fileName), fileName);
+                        fileModal.style.display = 'none';
+                    };
+                    fileListContainer.appendChild(div);
+                });
+            } catch(e) {
+                fileListContainer.innerHTML = '<p style="color:red">Gagal memuat daftar file. Pastikan Server Python berjalan.</p>';
+            }
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            fileModal.style.display = 'none';
+        });
+
+        // Fungsi Umum untuk Menampilkan Gambar di Kertas/Artboard
+        let currentZoom = 100;
+        let baseImgWidth = 0;
+        let baseImgHeight = 0;
+        
+        function updateZoomDisplay() {
+            document.getElementById('zoomText').innerText = `${currentZoom}%`;
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const img = artboard.querySelector('img');
+            
+            if (!img) return;
+
+            if (currentZoom === 100) {
+                // Reset ke mode fit-to-screen (Pas Layar)
+                wrapper.style.overflow = 'hidden';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.justifyContent = 'center';
+                
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                img.style.width = 'auto';
+                img.style.height = 'auto';
+                
+                artboard.style.maxWidth = '100%';
+                artboard.style.maxHeight = '100%';
+            } else {
+                // Mode Zoom (Bisa Scroll)
+                if (img.style.maxWidth === '100%') {
+                    // Catat ukuran aktual gambar saat 100% (Fit) agar pembesarannya presisi dan proporsional
+                    baseImgWidth = img.clientWidth;
+                    baseImgHeight = img.clientHeight;
+                }
+
+                wrapper.style.overflow = 'auto';
+                
+                // Ubah origin (pusat) penempatan ke Kiri Atas agar tidak terpotong (clipped) karena centering dari CSS Flexbox
+                wrapper.style.alignItems = 'flex-start';
+                wrapper.style.justifyContent = 'flex-start';
+                
+                // Lepas batasan batas layar maksimal
+                img.style.maxWidth = 'none';
+                img.style.maxHeight = 'none';
+                artboard.style.maxWidth = 'none';
+                artboard.style.maxHeight = 'none';
+                
+                // Terapkan ukuran baru (Skala secara akurat)
+                const newWidth = baseImgWidth * (currentZoom / 100);
+                const newHeight = baseImgHeight * (currentZoom / 100);
+                
+                img.style.width = newWidth + 'px';
+                img.style.height = newHeight + 'px';
+                artboard.style.minWidth = newWidth + 'px';
+                artboard.style.minHeight = newHeight + 'px';
+            }
+        }
+
+        document.getElementById('btnZoomIn').addEventListener('click', () => {
+            if (!artboard.querySelector('img')) return;
+            currentZoom += 25; // Tambah zoom 25%
+            updateZoomDisplay();
+        });
+
+        document.getElementById('btnZoomOut').addEventListener('click', () => {
+            if (!artboard.querySelector('img')) return;
+            currentZoom = Math.max(25, currentZoom - 25); // Minimal zoom 25%
+            updateZoomDisplay();
+        });
+
+        // ==== FITUR EXPORT (KIRIM DATA KE BACKEND HD) ====
+        document.getElementById('btnExport').addEventListener('click', async () => {
+            const imgEl = artboard.querySelector('img');
+            const texts = document.querySelectorAll('.comic-text');
+            
+            if (!imgEl || !window.currentFileName) {
+                alert("Tidak ada gambar untuk di-export!");
+                return;
+            }
+
+            if (texts.length === 0) {
+                alert("Tambahkan teks terlebih dahulu!");
+                return;
+            }
+
+            // Ambil resolusi tampilan saat ini (untuk kalkulasi skala)
+            const rectImg = imgEl.getBoundingClientRect();
+            const scaleX = imgEl.naturalWidth / rectImg.width;
+            const scaleY = imgEl.naturalHeight / rectImg.height;
+
+            const exportData = {
+                fileName: window.currentFileName,
+                elements: []
+            };
+
+            texts.forEach(el => {
+                const rectBox = el.getBoundingClientRect();
+                
+                // Kalkulasi posisi & ukuran relatif terhadap gambar asli (HD)
+                exportData.elements.push({
+                    text: el.innerText,
+                    x: (rectBox.left - rectImg.left) * scaleX,
+                    y: (rectBox.top - rectImg.top) * scaleY,
+                    w: rectBox.width * scaleX,
+                    h: rectBox.height * scaleY,
+                    fontSize: parseFloat(window.getComputedStyle(el).fontSize) * scaleY,
+                    bgColor: window.getComputedStyle(el).backgroundColor,
+                    textColor: window.getComputedStyle(el).color
+                });
+            });
+
+            // Kirim ke server
+            const btn = document.getElementById('btnExport');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">sync</span> Processing...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(exportData)
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert("Export Berhasil! Gambar HD disimpan di folder 'hasil'.");
+                    // Opsi: Langsung buka hasil
+                    window.open(result.url, '_blank');
+                } else {
+                    alert("Gagal Export: " + result.message);
+                }
+            } catch (err) {
+                alert("Terjadi kesalahan koneksi ke server.");
+                console.error(err);
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        });
+
+        // ==== FITUR TERJEMAHAN OTOMATIS (API GEMINI) ====
+        document.getElementById('btnTranslate').addEventListener('click', async () => {
+            if (!artboard.querySelector('img') || !window.currentFileName) {
+                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                return;
+            }
+
+            const btn = document.getElementById('btnTranslate');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Memindai...';
+            btn.disabled = true;
+            
+            const targetLang = document.getElementById('langTarget').value;
+
+            try {
+                const response = await fetch('/process_ocr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        filename: window.currentFileName,
+                        target_lang: targetLang
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert("API Error: " + data.error);
+                } else if (data.translations && data.translations.length > 0) {
+                    // Berhasil mendapatkan terjemahan, buat kotak teks untuk masing-masing
+                    data.translations.forEach((text, i) => {
+                        const textDiv = document.createElement('div');
+                        textDiv.className = 'comic-text';
+                        textDiv.contentEditable = "true";
+                        textDiv.innerText = text;
+                        
+                        // Jejerkan ke bawah sedikit-sedikit agar tidak numpuk jadi satu
+                        textDiv.style.top = (50 + (i * 40)) + "px";
+                        textDiv.style.left = "50px";
+
+                        // Pasang semua event handler drag & drop sama seperti tambah manual
+                        attachTextEvents(textDiv);
+                        artboard.appendChild(textDiv);
+                        
+                        // Warnai otomatis
+                        updateDominantColor(textDiv);
+                    });
+                    alert(`Berhasil menerjemahkan ${data.translations.length} teks!`);
+                } else {
+                    alert("Tidak ada teks yang berhasil dideteksi.");
+                }
+            } catch (err) {
+                console.error("Gagal Terjemahkan:", err);
+                alert("Terjadi kesalahan koneksi ke server penerjemah.");
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        });
+
+        // Dipisahkan menjadi fungsi agar bisa dipakai oleh tombol "Tambah Teks" dan hasil "Terjemahkan"
+        function attachTextEvents(textDiv) {
+            let isDragging = false;
+            let offsetBoxX, offsetBoxY;
+
+            const moveStart = (e) => {
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                const rect = textDiv.getBoundingClientRect();
+
+                // DETEKSI RESIZE: Jika klik berada di pojok kanan bawah, jangan aktifkan DRAG
+                const isOnResizer = (clientX > rect.right - 25 && clientY > rect.bottom - 25);
+                if (isOnResizer) return; 
+
+                // Jangan geser kalau lagi fokus mengetik (focus), kecuali klik di area kosong kotak
+                if (document.activeElement === textDiv && !e.shiftKey) return;
+                
+                // Mencegah browser HP mengenali sentuhan ini sebagai awalan scroll layar
+                if (e.cancelable && e.type.includes('touch')) {
+                    e.preventDefault();
+                }
+                
+                isDragging = true;
+                offsetBoxX = clientX - rect.left;
+                offsetBoxY = clientY - rect.top;
+                
+                textDiv.style.cursor = "grabbing";
+                e.stopPropagation();
+            };
+
+            const moveProcess = (e) => {
+                if (!isDragging) return;
+                
+                // Cegah layar ikut ter-scroll saat sedang menggeser balon teks
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+                
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                const parentRect = artboard.getBoundingClientRect();
+                
+                // Hitung posisi relatif terhadap Artboard
+                let x = clientX - parentRect.left - offsetBoxX;
+                let y = clientY - parentRect.top - offsetBoxY;
+
+                textDiv.style.left = x + "px";
+                textDiv.style.top = y + "px";
+            };
+
+            const moveEnd = () => {
+                isDragging = false;
+                textDiv.style.cursor = "grab";
+                
+                // Set warna setelah di-drop (jika sedang tidak diedit/diketik)
+                if (document.activeElement !== textDiv) {
+                    updateDominantColor(textDiv);
+                }
+            };
+
+            // Event Desktop
+            textDiv.addEventListener('mousedown', moveStart);
+            window.addEventListener('mousemove', moveProcess);
+            window.addEventListener('mouseup', moveEnd);
+
+            // Event HP (Touch)
+            textDiv.addEventListener('touchstart', moveStart, {passive: false});
+            window.addEventListener('touchmove', moveProcess, {passive: false});
+            window.addEventListener('touchend', moveEnd);
+
+            // ==== FITUR AUTO-SCALE FONT SIZE ====
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    const newFontSize = Math.max(10, height * 0.4);
+                    textDiv.style.fontSize = newFontSize + "px";
+                }
+                
+                // Update warna ketika ukuran kotak berubah secara signifikan
+                if (document.activeElement !== textDiv) {
+                    updateDominantColor(textDiv);
+                }
+            });
+            resizeObserver.observe(textDiv);
+
+            textDiv.addEventListener('blur', () => {
+                if (textDiv.innerText.trim() === "") {
+                    resizeObserver.unobserve(textDiv); // Stop observing before delete
+                    textDiv.remove();
+                    if (window.activeTextBox === textDiv) window.activeTextBox = null;
+                } else {
+                    updateDominantColor(textDiv);
+                }
+            });
+
+            // Lacak kotak teks yang sedang aktif/diedit
+            const setActive = () => { window.activeTextBox = textDiv; };
+            textDiv.addEventListener('focus', setActive);
+            textDiv.addEventListener('mousedown', setActive);
+            textDiv.addEventListener('touchstart', setActive, {passive: true});
+        }
+
+        // ==== FITUR HAPUS TEKS / BALON AKTIF ====
+        document.getElementById('btnCleanBalloon').addEventListener('click', () => {
+            if (window.activeTextBox && window.activeTextBox.parentNode) {
+                // Jika ada kotak yang sedang aktif (terakhir diklik/fokus), hapus kotak tersebut
+                window.activeTextBox.remove();
+                window.activeTextBox = null;
+            }
+        });
+
+        // ==== FITUR TAMBAH TEKS (MANUAL) ====
+        document.getElementById('btnAddText').addEventListener('click', () => {
+            if (!artboard.querySelector('img')) {
+                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                return;
+            }
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'comic-text';
+            textDiv.contentEditable = "true";
+            textDiv.innerText = "Ketik Teks...";
+            
+            textDiv.style.top = "50px";
+            textDiv.style.left = "50px";
+
+            attachTextEvents(textDiv);
+            
+            updateDominantColor(textDiv);
+            artboard.appendChild(textDiv);
+            textDiv.focus(); 
+        });
+
+        function showImageOnCanvas(imageSrc, fileName) {
+            // Hapus placeholder atau gambar sebelumnya
+            artboard.innerHTML = '';
+            
+            // Simpan nama file asli ke global variable untuk kebutuhan fitur Export
+            window.currentFileName = fileName;
+            
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; // Diperlukan agar script bisa membaca warna pixel gambar
+            img.src = imageSrc;
+            img.onload = () => {
+                canvasResolution.innerText = `Resolusi: ${img.naturalWidth} x ${img.naturalHeight} px`;
+                
+                // Cukup reset batas minimal saja, biarkan CSS flex yang membungkus gambar secara otomatis
+                artboard.style.minWidth = '0';
+                artboard.style.minHeight = '0';
+                
+                // Kembalikan ke 100% (Fit) setiap ganti gambar
+                currentZoom = 100;
+                updateZoomDisplay();
+            };
+            artboard.appendChild(img);
+        }
+
+        // ==== FITUR MODE PENGEMBANG (HOLD UNTUK INFO TOMBOL) ====
+        const holdTooltip = document.createElement('div');
+        holdTooltip.className = 'hold-tooltip';
+        document.body.appendChild(holdTooltip);
+        
+        let holdTimer;
+        let isHolding = false;
+
+        document.querySelectorAll('button').forEach(btn => {
+            const startHold = (e) => {
+                isHolding = false;
+                holdTimer = setTimeout(() => {
+                    isHolding = true;
+                    // Ambil teks dari tombol tanpa mengambil teks icon (material-icons)
+                    let btnText = "";
+                    btn.childNodes.forEach(node => {
+                        if(node.nodeType === Node.TEXT_NODE) btnText += node.textContent;
+                        else if(node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('material-icons-round')) btnText += node.innerText;
+                    });
+                    btnText = btnText.trim() || btn.title || "Tanpa Nama";
+                    
+                    // Format Info: [ID/Class] Nama Tombol
+                    const rawId = btn.id ? `#${btn.id}` : `.${btn.className.split(' ')[0]}`;
+                    const btnId = btn.id ? `ID: ${rawId}` : `Class: ${rawId}`;
+                    holdTooltip.innerText = `${btnId} | ${btnText} (Disalin!)`;
+                    
+                    // Posisikan tooltip sedikit di atas tombol yang ditekan
+                    const rect = btn.getBoundingClientRect();
+                    holdTooltip.style.display = 'block';
+                    holdTooltip.style.top = Math.max(10, rect.top - 35) + 'px';
+                    holdTooltip.style.left = Math.max(10, rect.left) + 'px';
+
+                    // Salin ke Clipboard secara otomatis
+                    navigator.clipboard.writeText(rawId).catch(err => {
+                        console.error('Gagal menyalin ke clipboard', err);
+                        holdTooltip.innerText = `${btnId} | ${btnText} (Gagal Salin)`;
+                    });
+
+                }, 600); // Tahan selama 600 milidetik untuk memunculkan tooltip
+            };
+
+            const endHold = () => {
+                clearTimeout(holdTimer);
+                setTimeout(() => { holdTooltip.style.display = 'none'; }, 200); // Sedikit delay agar user sempat baca "Disalin!"
+            };
+
+            // Mencegah klik biasa jalan jika habis di-hold
+            btn.addEventListener('click', (e) => {
+                if (isHolding) {
+                    e.preventDefault(); 
+                    e.stopPropagation();
+                }
+            });
+
+            // Event sentuh HP
+            btn.addEventListener('touchstart', startHold, {passive: true});
+            btn.addEventListener('touchend', endHold);
+            btn.addEventListener('touchcancel', endHold);
+            
+            // Event klik Mouse (untuk ngetes di komputer)
+            btn.addEventListener('mousedown', startHold);
+            btn.addEventListener('mouseup', endHold);
+            btn.addEventListener('mouseleave', endHold);
+
+            // Mencegah menu klik kanan (context menu) bawaan HP muncul saat nahan lama
+            btn.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+        });
+
+        // ==== FITUR DETEKSI WARNA (MENGHILANGKAN TEKS ASLI) ====
+        function updateDominantColor(textEl) {
+            const imgEl = artboard.querySelector('img');
+            if (!imgEl) return;
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const rectBox = textEl.getBoundingClientRect();
+                const rectImg = imgEl.getBoundingClientRect();
+                
+                // Cari rasio ukuran gambar asli vs yang ditampilkan
+                const scaleX = imgEl.naturalWidth / rectImg.width;
+                const scaleY = imgEl.naturalHeight / rectImg.height;
+                
+                // Kalkulasi area potongan (crop) pada gambar asli
+                const sourceX = (rectBox.left - rectImg.left) * scaleX;
+                const sourceY = (rectBox.top - rectImg.top) * scaleY;
+                const sourceW = rectBox.width * scaleX;
+                const sourceH = rectBox.height * scaleY;
+                
+                canvas.width = rectBox.width;
+                canvas.height = rectBox.height;
+                
+                ctx.drawImage(imgEl, sourceX, sourceY, sourceW, sourceH, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                const colorCounts = {};
+                let maxCount = 0;
+                let domR = 255, domG = 255, domB = 255;
+                
+                // Analisa tiap piksel (lompat per 16 byte untuk mempercepat proses di HP)
+                for (let i = 0; i < imageData.length; i += 16) {
+                    const r = imageData[i];
+                    const g = imageData[i+1];
+                    const b = imageData[i+2];
+                    const a = imageData[i+3];
+                    if (a < 255) continue; // Abaikan yang transparan
+                    
+                    // Kelompokkan warna yang mirip agar deteksi lebih jitu
+                    const key = `${Math.round(r/10)*10},${Math.round(g/10)*10},${Math.round(b/10)*10}`;
+                    colorCounts[key] = (colorCounts[key] || 0) + 1;
+                    
+                    if (colorCounts[key] > maxCount) {
+                        maxCount = colorCounts[key];
+                        domR = r; domG = g; domB = b;
+                    }
+                }
+                
+                // Terapkan warna dominan sebagai background
+                textEl.style.backgroundColor = `rgb(${domR}, ${domG}, ${domB})`;
+                textEl.style.border = "none"; // Hilangkan garis putus-putus saat selesai edit
+                
+                // Ubah warna font (hitam/putih) agar selalu kontras (terbaca) dengan backgroundnya
+                const yiq = ((domR * 299) + (domG * 587) + (domB * 114)) / 1000;
+                textEl.style.color = (yiq >= 128) ? 'black' : 'white';
+                
+            } catch (err) {
+                console.log("Tidak bisa deteksi warna gambar (Mungkin ada masalah CORS/Local Server): ", err);
+                textEl.style.backgroundColor = 'white'; // Warna aman
+                textEl.style.color = 'black';
+                textEl.style.border = "none";
+            }
+        }
+    </script>
+</body>
+</html>

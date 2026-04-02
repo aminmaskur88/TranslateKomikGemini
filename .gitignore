@@ -1,0 +1,14 @@
+# Kunci API & Rahasia
+gemini/gemini_key.txt
+gemini_key.txt
+
+# Folder Gambar
+bahan/*
+!bahan/.gitkeep
+hasil/*
+!hasil/.gitkeep
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
