@@ -1,64 +1,121 @@
-# TranslateKomik Editor
+# TranslateKomik Editor HD
 
-TranslateKomik Editor adalah aplikasi web lokal (Local Web App) yang dirancang khusus untuk memudahkan proses penerjemahan (*typesetting* dan *cleaning*) halaman komik/manga/manhwa secara langsung melalui browser, baik di HP (via Termux) maupun di PC.
+TranslateKomik Editor HD adalah aplikasi web lokal (Local Web App) canggih yang dirancang khusus untuk memudahkan para penerjemah (*scanlator*) melakukan proses penerjemahan (*typesetting* dan *cleaning*) halaman komik, manga, manhwa, atau manhua secara langsung melalui browser. Aplikasi ini dapat dijalankan dengan mulus baik di HP (menggunakan Termux) maupun di PC/Laptop.
 
-Aplikasi ini menggabungkan antarmuka editor visual yang interaktif (seperti memindahkan dan mengubah ukuran kotak teks langsung di atas gambar) dengan mesin pemrosesan gambar *backend* menggunakan Python (Pillow) untuk menghasilkan gambar *output* beresolusi tinggi (HD).
+Aplikasi ini menggabungkan antarmuka editor visual interaktif (drag & drop, resize font dinamis) dengan mesin pemrosesan gambar *backend* menggunakan Python (Pillow) untuk merender hasil teks ke gambar dengan kualitas resolusi asli (HD) tanpa kompresi *screenshot*.
+
+---
 
 ## Fitur Utama
 
-*   **Antarmuka Visual Editor (Drag & Drop):** Tambahkan teks, geser (*drag*), dan ubah ukuran kotak teks (*resize*) langsung di atas *preview* gambar komik.
-*   **Auto-Scale Font:** Ukuran font akan menyesuaikan secara otomatis secara proporsional ketika Anda mengubah ukuran kotak teks.
-*   **Smart Auto-Clean Balloon:** Saat Anda menempatkan kotak teks di atas balon percakapan, latar belakang kotak akan otomatis mendeteksi dan menggunakan warna dominan dari balon tersebut, sehingga teks asli di belakangnya tertutupi secara rapi tanpa perlu menghapusnya secara manual.
-*   **Zoom Canvas:** Fitur *Zoom In* dan *Zoom Out* untuk melihat detail komik saat melakukan *typesetting*.
-*   **Terjemahan Otomatis Berbasis AI (Gemini OCR):** Terintegrasi dengan Google Gemini Vision API untuk memindai teks asli (Jepang, Korea, dll.) pada gambar dan langsung menerjemahkannya ke bahasa tujuan (Indonesia/Inggris). Hasil terjemahan otomatis muncul sebagai kotak teks di layar.
-*   **Export Resolusi Tinggi (HD):** Berbeda dengan aplikasi web biasa, saat Anda menekan tombol Export, sistem tidak hanya mengambil *screenshot* layar browser. Sebaliknya, koordinat teks Anda dikirim ke server Python lokal, yang kemudian akan "mencetak" teks tersebut ke file gambar asli menggunakan font berkualitas tinggi (`ComicNeue-Bold.ttf`), tanpa menurunkan resolusi gambar sedikit pun.
-*   **Manajemen File Lokal (@bahan):** Mendukung pengunggahan file atau memilih gambar langsung dari folder `bahan/` di dalam direktori proyek.
+- **Antarmuka Visual Editor (Drag & Drop)**: Tambahkan, geser (*drag*), dan ubah ukuran kotak teks (*resize*) secara interaktif di atas *preview* gambar komik menggunakan mouse atau sentuhan (touchscreen).
+- **Auto-Scale Font**: Ukuran teks akan menyesuaikan secara otomatis secara proporsional saat Anda mengubah dimensi (melebarkan atau meninggikan) kotak teks.
+- **Smart Auto-Clean Balloon (Warna Background Dinamis)**: Sistem dapat secara otomatis mengambil *sample* warna dari *background* komik/balon percakapan asli di belakang kotak teks, sehingga teks asli yang berbahasa asing tertutupi dengan sempurna tanpa perlu melakukan *redrawing* manual.
+- **Zoom Canvas Terintegrasi**: Gunakan *slider* Zoom In/Out untuk melihat detail komik saat mengatur posisi teks (*typesetting*) presisi tinggi.
+- **Terjemahan Otomatis Berbasis AI (Gemini OCR & Vision)**: Terintegrasi dengan Google Gemini (versi 2.5 Flash) untuk mendeteksi (*OCR*) dan menerjemahkan teks asli (Jepang, Korea, dll.) secara langsung.
+- **Auto-Title & Folder Manajemen**: AI juga dapat menebak/menyarankan "Judul Komik" secara otomatis. Hasil ekspor komik akan dikelompokkan secara rapi berdasarkan nama bahasa (misal di folder `hasil/Indonesia/`).
+- **Fitur Ganti Bahasa Teks Cepat**: Ingin menerjemahkan satu halaman komik ke banyak bahasa sekaligus? Fitur "Ganti Bahasa (Teks)" memungkinkan Anda menerjemahkan semua teks yang sudah ditata di kanvas ke bahasa lain (contoh: Indonesia ke Inggris atau Jawa) hanya dengan sekali klik tanpa mengubah posisi kotak teks.
+- **Export Resolusi Tinggi (HD)**: Proses penyimpanan (Export) tidak sekadar melakukan *screenshot* browser. Koordinat dan pengaturan gaya teks dikirim ke server lokal Python untuk "dicetak" ulang ke atas gambar asli dengan resolusi tinggi.
 
-## Struktur Direktori
+---
 
-*   `index.html`: *Frontend* aplikasi (Antarmuka pengguna, CSS, dan logika interaksi JavaScript).
-*   `server.py`: *Backend* aplikasi (Server HTTP lokal Python untuk memproses *upload*, integrasi AI OCR, dan *rendering* gambar HD saat *export*).
-*   `bahan/`: Folder untuk menyimpan gambar komik asli (mentahan) yang akan diedit.
-*   `hasil/`: Folder tempat hasil gambar komik yang sudah diterjemahkan dan di-*export* disimpan.
-*   `Font/`: Folder untuk menyimpan *font custom* (contoh: `ComicNeue-Bold.ttf`).
-*   `gemini/`: Folder untuk menyimpan kunci API (`gemini_key.txt`).
-*   `requirements.txt`: Daftar *library* Python yang dibutuhkan.
+## Struktur Direktori Proyek
 
-## Persyaratan (Requirements)
+- `index.html`: File *Frontend* utama (UI/UX, logika JavaScript, dan desain gaya CSS).
+- `server.py`: File *Backend* (Server HTTP Python untuk menangani upload, komunikasi dengan API Gemini, dan *rendering* gambar HD menggunakan library Pillow).
+- `requirements.txt`: Daftar pustaka/modul Python yang dibutuhkan untuk menjalankan `server.py`.
+- `bahan/` (Default): Folder *default* untuk meletakkan gambar-gambar komik mentahan yang akan diedit.
+- `hasil/`: Folder tempat semua gambar yang sudah diedit & diekspor (akan dikelompokkan berdasarkan bahasa).
+- `Font/`: Folder untuk menyimpan *font custom* yang akan digunakan saat proses export. Secara bawaan sudah ada `ComicNeue-Bold.ttf`.
+- `gemini/`: Folder wajib untuk menyimpan file `gemini_key.txt` yang berisi deretan API Key Google Gemini Anda.
 
-Pastikan Anda telah menginstal Python di sistem Anda (PC atau Termux di Android). Aplikasi ini membutuhkan dua pustaka Python eksternal:
+---
 
-*   `requests` (Untuk memanggil API Gemini)
-*   `Pillow` (Untuk pemrosesan gambar resolusi tinggi)
+## Persyaratan Sistem (Requirements)
 
-## Cara Instalasi & Penggunaan
+Aplikasi ini sangat ringan dan hanya membutuhkan instalasi Python 3. Pastikan Anda telah menginstal Python di perangkat Anda (PC/Windows/Mac/Linux atau via Termux di Android).
 
-1.  **Klon/Unduh Repositori Ini**
-2.  **Instal Dependensi:**
-    Buka terminal (atau Termux), arahkan ke folder proyek ini, lalu jalankan perintah:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  **Siapkan API Key (Opsional, untuk fitur AI OCR):**
-    *   Buat folder bernama `gemini` di dalam direktori proyek.
-    *   Di dalam folder tersebut, buat file bernama `gemini_key.txt`.
-    *   Masukkan API Key Google Gemini Anda ke dalam file tersebut (satu baris saja).
-4.  **Jalankan Server:**
-    Di terminal, jalankan perintah:
-    ```bash
-    python server.py
-    ```
-5.  **Buka Editor:**
-    Buka browser web Anda (Chrome, Firefox, Safari, dll.) dan kunjungi alamat:
-    `http://localhost:8080`
+Dependensi eksternal yang digunakan:
+- `requests` (Untuk mengambil/mengirim data ke API Gemini)
+- `Pillow` / `PIL` (Untuk pemrosesan gambar beresolusi tinggi di server)
 
-## Panduan Singkat Penggunaan
+---
 
-1.  **Mulai:** Di panel kiri, klik **Upload** untuk memilih gambar dari perangkat Anda, atau klik **Buka** untuk memilih gambar yang sudah ada di folder `bahan/`.
-2.  **Translate Otomatis (Jika API Key diset):** Pilih bahasa asal dan tujuan di panel kiri, lalu klik **Terjemahkan**. Tunggu beberapa saat, kotak-kotak teks terjemahan akan muncul di pojok kiri atas.
-3.  **Tambah Teks Manual:** Klik tombol **Tambah Teks** di panel kiri bawah.
-4.  **Edit & Posisikan:** 
-    *   Klik dua kali pada teks untuk mengubah isinya.
-    *   Klik, tahan, dan seret kotak untuk memindahkannya.
-    *   Tarik ujung kanan bawah kotak untuk mengubah ukurannya (teks akan menyesuaikan otomatis).
-5.  **Simpan:** Jika sudah selesai, klik tombol **Export** berwana biru di pojok kanan atas. Hasil gambar HD akan tersimpan di dalam folder `hasil/`.
+## Panduan Instalasi & Persiapan
+
+1. **Clone atau Unduh Repositori Ini**
+   Pastikan Anda sudah berada di dalam folder proyek `TranslateKomikGemini`.
+
+2. **Instal Modul Python yang Dibutuhkan**
+   Buka terminal atau Termux Anda, dan jalankan perintah berikut:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Siapkan Google Gemini API Key**
+   - Buat sebuah folder bernama `gemini` di dalam direktori root proyek ini (jika belum ada).
+   - Di dalam folder `gemini/`, buat sebuah file teks bernama `gemini_key.txt`.
+   - Buka Google AI Studio, dapatkan API Key Anda, lalu masukkan (*paste*) teks API Key tersebut ke dalam file `gemini_key.txt`.
+   - Anda dapat memasukkan lebih dari satu baris API Key jika Anda ingin menggunakan fitur rotasi key (untuk menghindari *limit quota*).
+
+4. **Siapkan Font Tambahan (Opsional)**
+   Jika Anda ingin menggunakan font lain selain bawaan, Anda bisa mengganti file `ComicNeue-Bold.ttf` di dalam folder `Font/` dengan font TTF lain, lalu pastikan Anda menyesuaikan jalurnya di bagian atas file `server.py` (`FONT_PATH = 'Font/ComicNeue-Bold.ttf'`).
+
+---
+
+## Cara Menjalankan Aplikasi
+
+Aplikasi dijalankan melalui baris perintah (Terminal/Command Prompt/Termux).
+
+### Cara Biasa (Default Mode)
+Secara bawaan, aplikasi akan membaca file gambar dari folder `bahan/`.
+```bash
+python server.py
+```
+
+### Cara Kustom (Custom Directory Mode)
+Jika Anda memiliki gambar di folder lain (misalnya folder hasil ekstraksi manga di lokasi spesifik), Anda bisa langsung membuka folder tersebut di aplikasi dengan menambahkan jalur *path* sebagai argumen.
+```bash
+# Contoh membuka folder Chapter_01
+python server.py /path/ke/folder/komik/Chapter_01
+```
+*Note: Ketika menggunakan mode ini, UI web akan langsung menampilkan gambar-gambar dari folder tersebut, dan file `history.json` (riwayat status terjemahan) juga akan disimpan di folder tersebut agar rapi.*
+
+---
+
+## Panduan Penggunaan Web UI
+
+Setelah server berjalan (biasanya di `http://localhost:8080` atau `http://0.0.0.0:8080`), buka alamat tersebut menggunakan browser modern seperti Chrome, Firefox, Edge, atau Safari.
+
+### 1. Memilih Gambar
+- **Dari Server/Folder**: Di panel sebelah kiri, terdapat *dropdown* daftar file yang ada di folder kerja Anda (bisa `bahan/` atau folder yang Anda tentukan). Pilih file dari *dropdown* lalu klik tombol **Buka**.
+- **Upload Manual**: Anda juga dapat mengklik tombol **Upload File Lokal** untuk mengunggah gambar satuan langsung dari galeri/penyimpanan perangkat Anda ke server.
+
+### 2. Fitur Auto-Translate (Gemini AI)
+- Di sebelah kiri, pilih **Bahasa Asal** teks komik (atau biarkan di **Auto**).
+- Pilih **Bahasa Tujuan** (misal: Indonesia, English, Jawa, Sunda, Tagalog).
+- Klik tombol biru **Terjemahkan (Gambar)**.
+- Tunggu beberapa detik. AI akan menganalisis gambar, mengekstrak teks asli, menerjemahkannya, memisahkan per-balon, dan bahkan **mengisi otomatis judul komik**.
+- Setelah selesai, beberapa kotak teks akan langsung muncul bersusun di kanvas gambar Anda.
+
+### 3. Melakukan Typesetting (Editing Teks)
+- **Edit Isi**: Klik **2 kali (Double Click)** pada kotak teks untuk mengubah isinya.
+- **Pindahkan Posisi**: Klik (jangan dilepas), tahan, dan geser (*drag*) kotak teks ke atas balon percakapan yang sesuai.
+- **Ubah Ukuran**: Di setiap pojok kanan bawah kotak teks, terdapat indikator segitiga kecil (*resizer*). Tarik/geser bagian tersebut untuk melebarkan atau meninggikan kotak. Ukuran font di dalamnya akan otomatis menyesuaikan agar muat (*auto-scale*).
+- **Hapus Teks**: Jika ada kotak teks berlebih, klik satu kali pada kotak teks tersebut, lalu klik ikon tempat sampah (🗑️) berwarna merah di panel kiri bawah (atau tekan tombol `Delete` di keyboard PC).
+- **Warna Teks & Background**:
+  - Gunakan pemilih warna (*color picker*) di panel kiri untuk mengubah warna teks (`#000000` default) atau warna *background* kotak teks (`#ffffff` default).
+  - Anda bisa menggunakan pipet warna (*eyedropper*) sistem jika didukung oleh browser Anda untuk mengambil warna dari bagian gambar tertentu.
+  - Untuk *background* transparan, kosongkan atau set *opacity* warna ke 0.
+
+### 4. Fitur Ganti Bahasa (Teks)
+Jika Anda sudah menyusun posisi kotak-kotak teks di satu bahasa (misalnya Bahasa Indonesia), dan ingin mengekspor halaman yang sama dalam bahasa lain (misalnya Bahasa Inggris):
+- Ubah pengaturan **Bahasa Tujuan** di menu kiri ke (misal) `English`.
+- Klik tombol **Ganti Bahasa (Teks)**.
+- AI akan membaca semua teks yang saat ini tampil di kanvas, lalu menggantinya dengan bahasa baru *tanpa mengubah* tata letak dan ukuran kotaknya.
+
+### 5. Export Gambar (Simpan Hasil)
+- Setelah semua teks sudah rapi, klik tombol biru **Export HD** di panel paling kanan atas.
+- Server Python akan merender ulang gambar asli dengan menyisipkan kotak dan teks *custom* Anda dengan akurasi dan kualitas tinggi.
+- Gambar akhir yang sudah jadi akan disimpan secara otomatis di dalam folder `hasil/[Nama_Bahasa]/` di direktori proyek lokal Anda.
+- Muncul indikator (riwayat ekspor) di bawah tombol "Terjemahkan" yang memberi tahu Anda ke bahasa apa saja gambar ini sudah diekspor (contoh: "Telah di-export ke: Indonesia, English").
