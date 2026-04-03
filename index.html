@@ -278,7 +278,12 @@
                 </div>
             </div>
             <div id="detectedLangBox" style="display: none; font-size: 11px; color: var(--accent); text-align: center; margin-top: 5px; font-weight: bold;">Terdeteksi: <span id="detectedLangText"></span></div>
-            <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan</button>
+            <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan (Gambar)</button>
+            <button id="btnRetranslate" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px;"><span class="material-icons-round">g_translate</span> Ganti Bahasa (Teks)</button>
+            <div id="exportHistoryBox" style="display: none; font-size: 11px; margin-top: 12px; color: var(--text-muted); border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                Telah di-export ke:<br>
+                <div id="exportHistoryList" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;"></div>
+            </div>
         </div>
         
         <div class="divider-horizontal"></div>
@@ -545,6 +550,10 @@
                 const result = await response.json();
                 if (result.status === 'success') {
                     alert("Export Berhasil! Gambar HD disimpan di folder 'hasil'.");
+                    
+                    // Ambil pembaruan riwayat dari server yang barusan nyimpen file
+                    if (typeof updateExportHistoryDisplay === 'function') updateExportHistoryDisplay();
+                    
                     // Opsi: Langsung buka hasil
                     window.open(result.url, '_blank');
                 } else {
@@ -648,6 +657,77 @@
                 }
             } catch (err) {
                 console.error("Gagal Terjemahkan:", err);
+                alert("Terjadi kesalahan koneksi ke server penerjemah.");
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        });
+
+        // ==== FITUR TERJEMAHAN ULANG TEKS (GANTI BAHASA TANPA UBAH POSISI) ====
+        document.getElementById('btnRetranslate').addEventListener('click', async () => {
+            const texts = document.querySelectorAll('.comic-text');
+            const titleInput = document.getElementById('comicTitle');
+            const hasTitle = titleInput.value.trim() !== '';
+
+            if (texts.length === 0 && !hasTitle) {
+                alert("Tidak ada kotak teks di canvas atau judul komik untuk diganti bahasanya!");
+                return;
+            }
+
+            let targetLang = document.getElementById('langTarget').value;
+            if (targetLang === 'Manual') {
+                targetLang = document.getElementById('manualTargetLang').value.trim();
+                if (!targetLang) {
+                    alert("Masukkan bahasa tujuan secara manual!");
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btnRetranslate');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">sync</span> Mengganti...';
+            btn.disabled = true;
+
+            const textArray = Array.from(texts).map(el => el.innerText);
+            
+            // Tambahkan judul ke baris paling akhir dari array jika ada
+            if (hasTitle) {
+                textArray.push(titleInput.value.trim());
+            }
+
+            try {
+                const response = await fetch('/translate_texts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        texts: textArray,
+                        target_lang: targetLang
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert("API Error: " + data.error);
+                } else if (data.translations && data.translations.length === textArray.length) {
+                    
+                    // Ambil terjemahan judul di array paling belakang, lalu kurangi arraynya
+                    if (hasTitle) {
+                        const translatedTitle = data.translations.pop();
+                        titleInput.value = translatedTitle;
+                    }
+                    
+                    // Sisa terjemahan adalah milik teks di dalam gambar
+                    texts.forEach((el, index) => {
+                        el.innerText = data.translations[index];
+                    });
+                    
+                } else {
+                    alert("Gagal memproses terjemahan atau jumlah teks yang dikembalikan tidak cocok.");
+                }
+            } catch (err) {
+                console.error("Gagal Mengganti Bahasa:", err);
                 alert("Terjadi kesalahan koneksi ke server penerjemah.");
             } finally {
                 btn.innerHTML = originalHTML;
@@ -789,12 +869,54 @@
             textDiv.focus(); 
         });
 
+        async function fetchHistory() {
+            try {
+                const response = await fetch('/get_history');
+                window.exportHistory = await response.json();
+            } catch(e) {
+                console.error("Gagal load history", e);
+                window.exportHistory = {};
+            }
+        }
+
+        async function updateExportHistoryDisplay() {
+            await fetchHistory(); // Ambil data history permanen dari server
+            const historyBox = document.getElementById('exportHistoryBox');
+            const historyList = document.getElementById('exportHistoryList');
+            if (!historyBox || !historyList) return;
+            
+            // Perhatikan penggunaan `.length` karena sekarang datanya adalah Array dari JSON, bukan Set.
+            if (!window.currentFileName || !window.exportHistory || !window.exportHistory[window.currentFileName] || window.exportHistory[window.currentFileName].length === 0) {
+                historyBox.style.display = 'none';
+                return;
+            }
+            
+            historyBox.style.display = 'block';
+            historyList.innerHTML = '';
+            
+            window.exportHistory[window.currentFileName].forEach(lang => {
+                const badge = document.createElement('span');
+                badge.style.backgroundColor = 'var(--item-active)';
+                badge.style.color = 'var(--accent)';
+                badge.style.border = '1px solid var(--accent)';
+                badge.style.padding = '2px 8px';
+                badge.style.borderRadius = '12px';
+                badge.style.fontSize = '10px';
+                badge.style.fontWeight = 'bold';
+                badge.innerText = lang;
+                historyList.appendChild(badge);
+            });
+        }
+
         function showImageOnCanvas(imageSrc, fileName) {
             // Hapus placeholder atau gambar sebelumnya
             artboard.innerHTML = '';
             
             // Simpan nama file asli ke global variable untuk kebutuhan fitur Export
             window.currentFileName = fileName;
+            
+            // Panggil riwayat export untuk file ini (tanpa perlu buat Set kosong)
+            updateExportHistoryDisplay();
             
             const img = new Image();
             img.crossOrigin = "Anonymous"; // Diperlukan agar script bisa membaca warna pixel gambar

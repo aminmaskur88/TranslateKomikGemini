@@ -6,6 +6,7 @@ import urllib.parse
 import base64
 import requests
 import mimetypes
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -15,9 +16,36 @@ OUTPUT_DIR = 'hasil'
 FONT_PATH = 'Font/ComicNeue-Bold.ttf'
 KEY_FILE = 'gemini/gemini_key.txt'
 
+# Ambil READ_DIR dari argumen command line jika ada, jika tidak gunakan 'bahan'
+if len(sys.argv) > 1:
+    READ_DIR = sys.argv[1]
+else:
+    READ_DIR = 'bahan'
+
 # Pastikan folder ada
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+if READ_DIR != UPLOAD_DIR:
+    os.makedirs(READ_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Lokasi history sekarang mengikuti READ_DIR (folder yang sedang dibuka)
+HISTORY_FILE = os.path.join(READ_DIR, 'history.json')
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_history(history_data):
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Gagal menyimpan history: {e}")
 
 class ApiKeyManager:
     def __init__(self, key_file):
@@ -39,7 +67,7 @@ class ApiKeyManager:
 key_manager = ApiKeyManager(KEY_FILE)
 
 def call_gemini_api(payload):
-    models = ["gemini-3-flash", "gemini-2.5-flash"]
+    models = ["gemini-2.5-flash"]
 
     for _ in range(len(key_manager.keys) or 1):
         api_key = key_manager.get_current_key()
@@ -101,6 +129,15 @@ def call_gemini_vision(image_path, target_lang="Indonesian", source_lang="Auto")
                 {"inline_data": {"mime_type": mime_type, "data": img_b64}}
             ]
         }],
+        "generationConfig": {"response_mime_type": "application/json"}
+    }
+    return call_gemini_api(payload)
+
+def call_gemini_text(texts, target_lang):
+    prompt = f"Translate the following list of comic text bubbles to {target_lang}. Keep the exact same order, meaning, and tone. Return ONLY JSON format: {{'translations': ['translated text 1', 'translated text 2', ...]}}\n\nTexts:\n{json.dumps(texts, ensure_ascii=False)}"
+    
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"response_mime_type": "application/json"}
     }
     return call_gemini_api(payload)
@@ -177,7 +214,9 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     
                 source_path = os.path.join(UPLOAD_DIR, os.path.basename(filename))
                 if not os.path.exists(source_path):
-                    raise FileNotFoundError(f"File {source_path} tidak ditemukan.")
+                    source_path = os.path.join(READ_DIR, os.path.basename(filename))
+                if not os.path.exists(source_path):
+                    raise FileNotFoundError(f"File {filename} tidak ditemukan di bahan maupun {READ_DIR}.")
 
                 # Panggil Gemini API
                 result = call_gemini_vision(source_path, target_lang, source_lang)
@@ -196,6 +235,34 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
 
+        elif self.path == '/translate_texts':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                texts = data.get('texts', [])
+                target_lang = data.get('target_lang', 'English')
+                
+                if not texts:
+                    raise ValueError("Tidak ada teks yang dikirim")
+
+                result = call_gemini_text(texts, target_lang)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode('utf-8'))
+                return
+                
+            except Exception as e:
+                print(f"Error translate texts: {e}")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
         elif self.path == '/export':
             try:
                 content_length = int(self.headers['Content-Length'])
@@ -204,7 +271,9 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 
                 source_path = os.path.join(UPLOAD_DIR, os.path.basename(data['fileName']))
                 if not os.path.exists(source_path):
-                    raise FileNotFoundError(f"File {source_path} tidak ditemukan.")
+                    source_path = os.path.join(READ_DIR, os.path.basename(data['fileName']))
+                if not os.path.exists(source_path):
+                    raise FileNotFoundError(f"File {data['fileName']} tidak ditemukan di bahan maupun {READ_DIR}.")
 
                 # Buka gambar HD asli
                 img = Image.open(source_path).convert('RGB')
@@ -290,10 +359,20 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     safe_title = safe_title.replace(' ', '_')
                     output_filename = f"{safe_title}{original_ext}"
                 else:
-                    output_filename = "hasil_" + os.path.basename(data['fileName'])
+                    base_name = os.path.splitext(os.path.basename(data['fileName']))[0]
+                    output_filename = f"{base_name}{original_ext}"
                     
                 output_path = os.path.join(lang_dir, output_filename)
                 img.save(output_path, quality=95)
+                
+                # Simpan Riwayat Export ke File history.json
+                history = load_history()
+                file_key = os.path.basename(data['fileName'])
+                if file_key not in history:
+                    history[file_key] = []
+                if safe_lang not in history[file_key]:
+                    history[file_key].append(safe_lang)
+                save_history(history)
                 
                 # Respon Sukses
                 self.send_response(200)
@@ -315,19 +394,50 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode('utf-8'))
                 return
 
+    def translate_path(self, path):
+        # Tangani request gambar dari /bahan/ agar bisa membaca dari READ_DIR jika tidak ada di UPLOAD_DIR
+        if path.startswith('/bahan/'):
+            filename = urllib.parse.unquote(path.split('/')[-1])
+            upload_path = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(upload_path):
+                return os.path.abspath(upload_path)
+            read_path = os.path.join(READ_DIR, filename)
+            if os.path.exists(read_path):
+                return os.path.abspath(read_path)
+            return os.path.abspath(upload_path)
+        return super().translate_path(path)
+
     def do_GET(self):
-        # API Endpoint untuk mengambil daftar file di folder bahan
+        # API Endpoint untuk mengambil daftar file di folder bahan/READ_DIR
         if self.path == '/list-bahan':
             files = []
-            if os.path.exists(UPLOAD_DIR):
-                for f in os.listdir(UPLOAD_DIR):
+            seen = set()
+            
+            # 1. Ambil dari READ_DIR
+            if os.path.exists(READ_DIR):
+                for f in os.listdir(READ_DIR):
                     if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                        files.append(f)
+                        seen.add(f)
+            
+            # 2. Ambil dari UPLOAD_DIR (bahan) jika berbeda dengan READ_DIR
+            if READ_DIR != UPLOAD_DIR and os.path.exists(UPLOAD_DIR):
+                for f in os.listdir(UPLOAD_DIR):
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and f not in seen:
                         files.append(f)
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(files).encode('utf-8'))
+            return
+
+        elif self.path == '/get_history':
+            history = load_history()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(history).encode('utf-8'))
             return
             
         # Panggil default handler untuk serve index.html, bahan/..., hasil/...
