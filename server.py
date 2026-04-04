@@ -353,22 +353,32 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 if not safe_lang: safe_lang = "Hasil_Export"
                 
                 # Struktur Output menyesuaikan subfolder sumber
-                # Misal: bahan/KomikA/Ep1/01.png -> hasil/Indonesia/KomikA/Ep1/01.png
                 sub_dir = os.path.dirname(rel_filename)
                 lang_dir = os.path.join(OUTPUT_DIR, safe_lang, sub_dir)
                 os.makedirs(lang_dir, exist_ok=True)
 
-                comic_title = data.get('comicTitle', '').strip()
                 original_ext = os.path.splitext(rel_filename)[1]
+                base_name = os.path.splitext(os.path.basename(rel_filename))[0]
                 
-                if comic_title:
-                    # Bersihkan nama judul untuk nama file yang aman
+                # LOGIKA PINTAR: Tentukan apakah ini One-shot atau Slide/Series
+                parent_dir = os.path.dirname(source_path)
+                # Cek apakah folder ini adalah folder utama (Root)
+                is_root = (os.path.abspath(parent_dir) == os.path.abspath(READ_DIR) or 
+                           os.path.abspath(parent_dir) == os.path.abspath(UPLOAD_DIR))
+                
+                image_in_folder = [f for f in os.listdir(parent_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif'))]
+                
+                comic_title = data.get('comicTitle', '').strip()
+                
+                # Gunakan Judul Gemini sebagai nama file jika:
+                # 1. Berada langsung di folder utama (Root) -> Anggap koleksi One-shot
+                # 2. Atau jika hanya ada 1 gambar di dalam subfolder tersebut
+                if comic_title and (is_root or len(image_in_folder) == 1):
                     safe_title = "".join([c for c in comic_title if c.isalnum() or c in (' ', '_', '-')]).strip()
-                    # Ganti spasi dengan underscore untuk nama file yang lebih baik
                     safe_title = safe_title.replace(' ', '_')
                     output_filename = f"{safe_title}{original_ext}"
                 else:
-                    base_name = os.path.splitext(os.path.basename(rel_filename))[0]
+                    # Jika di dalam subfolder dan ada banyak gambar -> Anggap Slide/Series, jaga urutan
                     output_filename = f"{base_name}{original_ext}"
                     
                 output_path = os.path.join(lang_dir, output_filename)
