@@ -212,9 +212,9 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 if not filename:
                     raise ValueError("Filename tidak ditemukan")
                     
-                source_path = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+                source_path = os.path.join(UPLOAD_DIR, filename)
                 if not os.path.exists(source_path):
-                    source_path = os.path.join(READ_DIR, os.path.basename(filename))
+                    source_path = os.path.join(READ_DIR, filename)
                 if not os.path.exists(source_path):
                     raise FileNotFoundError(f"File {filename} tidak ditemukan di bahan maupun {READ_DIR}.")
 
@@ -269,11 +269,13 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 post_data = self.rfile.read(content_length)
                 data = json.loads(post_data.decode('utf-8'))
                 
-                source_path = os.path.join(UPLOAD_DIR, os.path.basename(data['fileName']))
+                # Gunakan relative path asli
+                rel_filename = data['fileName']
+                source_path = os.path.join(UPLOAD_DIR, rel_filename)
                 if not os.path.exists(source_path):
-                    source_path = os.path.join(READ_DIR, os.path.basename(data['fileName']))
+                    source_path = os.path.join(READ_DIR, rel_filename)
                 if not os.path.exists(source_path):
-                    raise FileNotFoundError(f"File {data['fileName']} tidak ditemukan di bahan maupun {READ_DIR}.")
+                    raise FileNotFoundError(f"File {rel_filename} tidak ditemukan di bahan maupun {READ_DIR}.")
 
                 # Buka gambar HD asli
                 img = Image.open(source_path).convert('RGB')
@@ -318,7 +320,11 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     total_text_height = sum(line_heights) + (max(0, len(lines) - 1)) * line_spacing
                     
                     # Mulai menggambar dari posisi Y agar teks di tengah secara vertikal
-                    current_y = y + (h - total_text_height) / 2
+                    # Jika teks lebih tinggi dari box, mulai dari atas box (y) agar tidak meleber ke atas
+                    if total_text_height > h:
+                        current_y = y
+                    else:
+                        current_y = y + (h - total_text_height) / 2
                     
                     for i, line in enumerate(lines):
                         if not line:
@@ -346,11 +352,14 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 safe_lang = "".join([c for c in target_lang if c.isalnum() or c in (' ', '_', '-')]).strip()
                 if not safe_lang: safe_lang = "Hasil_Export"
                 
-                lang_dir = os.path.join(OUTPUT_DIR, safe_lang)
+                # Struktur Output menyesuaikan subfolder sumber
+                # Misal: bahan/KomikA/Ep1/01.png -> hasil/Indonesia/KomikA/Ep1/01.png
+                sub_dir = os.path.dirname(rel_filename)
+                lang_dir = os.path.join(OUTPUT_DIR, safe_lang, sub_dir)
                 os.makedirs(lang_dir, exist_ok=True)
 
                 comic_title = data.get('comicTitle', '').strip()
-                original_ext = os.path.splitext(data['fileName'])[1]
+                original_ext = os.path.splitext(rel_filename)[1]
                 
                 if comic_title:
                     # Bersihkan nama judul untuk nama file yang aman
@@ -359,7 +368,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     safe_title = safe_title.replace(' ', '_')
                     output_filename = f"{safe_title}{original_ext}"
                 else:
-                    base_name = os.path.splitext(os.path.basename(data['fileName']))[0]
+                    base_name = os.path.splitext(os.path.basename(rel_filename))[0]
                     output_filename = f"{base_name}{original_ext}"
                     
                 output_path = os.path.join(lang_dir, output_filename)
@@ -367,11 +376,10 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 
                 # Simpan Riwayat Export ke File history.json
                 history = load_history()
-                file_key = os.path.basename(data['fileName'])
-                if file_key not in history:
-                    history[file_key] = []
-                if safe_lang not in history[file_key]:
-                    history[file_key].append(safe_lang)
+                if rel_filename not in history:
+                    history[rel_filename] = []
+                if safe_lang not in history[rel_filename]:
+                    history[rel_filename].append(safe_lang)
                 save_history(history)
                 
                 # Respon Sukses
@@ -394,14 +402,75 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode('utf-8'))
                 return
 
+        elif self.path == '/skip_translation':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                rel_filename = data['fileName']
+                source_path = os.path.join(UPLOAD_DIR, rel_filename)
+                if not os.path.exists(source_path):
+                    source_path = os.path.join(READ_DIR, rel_filename)
+                if not os.path.exists(source_path):
+                    raise FileNotFoundError(f"File {rel_filename} tidak ditemukan di bahan maupun {READ_DIR}.")
+
+                import shutil
+                # Ambil daftar bahasa dari folder hasil/
+                languages = []
+                if os.path.exists(OUTPUT_DIR):
+                    languages = [d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))]
+                
+                if not languages:
+                    languages = ["Indonesia"] # Default jika kosong
+
+                history = load_history()
+                if rel_filename not in history:
+                    history[rel_filename] = []
+
+                sub_dir = os.path.dirname(rel_filename)
+                base_name = os.path.basename(rel_filename)
+
+                for lang in languages:
+                    lang_dir = os.path.join(OUTPUT_DIR, lang, sub_dir)
+                    os.makedirs(lang_dir, exist_ok=True)
+                    output_path = os.path.join(lang_dir, base_name)
+                    
+                    shutil.copy2(source_path, output_path)
+                    
+                    if lang not in history[rel_filename]:
+                        history[rel_filename].append(lang)
+                        
+                save_history(history)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {
+                    'status': 'success', 
+                    'message': f'Berhasil disalin ke {len(languages)} bahasa.', 
+                    'languages': languages
+                }
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                return
+
+            except Exception as e:
+                print(f"Error Skip Translation: {e}")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode('utf-8'))
+                return
+
     def translate_path(self, path):
         # Tangani request gambar dari /bahan/ agar bisa membaca dari READ_DIR jika tidak ada di UPLOAD_DIR
         if path.startswith('/bahan/'):
-            filename = urllib.parse.unquote(path.split('/')[-1])
-            upload_path = os.path.join(UPLOAD_DIR, filename)
+            # Ambil rel_path setelah /bahan/
+            rel_path = urllib.parse.unquote(path[len('/bahan/'):])
+            upload_path = os.path.join(UPLOAD_DIR, rel_path)
             if os.path.exists(upload_path):
                 return os.path.abspath(upload_path)
-            read_path = os.path.join(READ_DIR, filename)
+            read_path = os.path.join(READ_DIR, rel_path)
             if os.path.exists(read_path):
                 return os.path.abspath(read_path)
             return os.path.abspath(upload_path)
@@ -410,26 +479,37 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         # API Endpoint untuk mengambil daftar file di folder bahan/READ_DIR
         if self.path == '/list-bahan':
-            files = []
+            files_data = []
             seen = set()
+            history = load_history()
+            
+            def scan_dir(base_path):
+                if not os.path.exists(base_path):
+                    return
+                for root, dirs, files in os.walk(base_path):
+                    for f in files:
+                        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                            # Dapatkan path relatif dari base_path
+                            rel_path = os.path.relpath(os.path.join(root, f), base_path)
+                            if rel_path not in seen:
+                                files_data.append({
+                                    "name": rel_path,
+                                    "translated": rel_path in history and len(history[rel_path]) > 0,
+                                    "languages": history.get(rel_path, [])
+                                })
+                                seen.add(rel_path)
             
             # 1. Ambil dari READ_DIR
-            if os.path.exists(READ_DIR):
-                for f in os.listdir(READ_DIR):
-                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                        files.append(f)
-                        seen.add(f)
+            scan_dir(READ_DIR)
             
             # 2. Ambil dari UPLOAD_DIR (bahan) jika berbeda dengan READ_DIR
-            if READ_DIR != UPLOAD_DIR and os.path.exists(UPLOAD_DIR):
-                for f in os.listdir(UPLOAD_DIR):
-                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and f not in seen:
-                        files.append(f)
+            if READ_DIR != UPLOAD_DIR:
+                scan_dir(UPLOAD_DIR)
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(files).encode('utf-8'))
+            self.wfile.write(json.dumps(files_data).encode('utf-8'))
             return
 
         elif self.path == '/get_history':

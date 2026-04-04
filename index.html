@@ -280,6 +280,7 @@
             <div id="detectedLangBox" style="display: none; font-size: 11px; color: var(--accent); text-align: center; margin-top: 5px; font-weight: bold;">Terdeteksi: <span id="detectedLangText"></span></div>
             <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan (Gambar)</button>
             <button id="btnRetranslate" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px;"><span class="material-icons-round">g_translate</span> Ganti Bahasa (Teks)</button>
+            <button id="btnSkipText" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px; border-color: #10b981; color: #10b981; background-color: #ecfdf5;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
             <div id="exportHistoryBox" style="display: none; font-size: 11px; margin-top: 12px; color: var(--text-muted); border-top: 1px dashed var(--border-color); padding-top: 8px;">
                 Telah di-export ke:<br>
                 <div id="exportHistoryList" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;"></div>
@@ -389,16 +390,148 @@
                 }
 
                 fileListContainer.innerHTML = '';
-                files.forEach(fileName => {
-                    const div = document.createElement('div');
-                    div.className = 'file-item';
-                    div.innerHTML = `<span class="material-icons-round" style="color:var(--text-muted)">image</span> <span>${fileName}</span>`;
-                    div.onclick = () => {
-                        // Tampilkan gambar dari folder bahan
-                        showImageOnCanvas('/bahan/' + encodeURIComponent(fileName), fileName);
-                        fileModal.style.display = 'none';
+                
+                // Mengelompokkan file berdasarkan folder
+                const filesByFolder = {};
+                files.forEach(file => {
+                    const parts = file.name.split('/');
+                    const fileName = parts.pop();
+                    const folderName = parts.length > 0 ? parts.join('/') : '/ (Root)';
+                    
+                    if (!filesByFolder[folderName]) {
+                        filesByFolder[folderName] = [];
+                    }
+                    filesByFolder[folderName].push({ ...file, shortName: fileName });
+                });
+
+                // Mengurutkan nama folder sesuai abjad
+                const folders = Object.keys(filesByFolder).sort();
+                
+                // Ambil folder terakhir yang dibuka dari localStorage
+                const lastOpenedFolder = localStorage.getItem('lastOpenedFolder');
+
+                folders.forEach(folder => {
+                    // Container untuk seluruh isi folder (header + list file)
+                    const folderContainer = document.createElement('div');
+                    folderContainer.style.marginBottom = '4px';
+
+                    // Membuat Header Folder (Bisa diklik)
+                    const folderHeader = document.createElement('div');
+                    folderHeader.style.padding = '10px';
+                    folderHeader.style.backgroundColor = 'var(--item-hover)';
+                    folderHeader.style.border = '1px solid var(--border-color)';
+                    folderHeader.style.borderRadius = '6px';
+                    folderHeader.style.fontWeight = 'bold';
+                    folderHeader.style.fontSize = '13px';
+                    folderHeader.style.color = 'var(--text-main)';
+                    folderHeader.style.display = 'flex';
+                    folderHeader.style.alignItems = 'center';
+                    folderHeader.style.justifyContent = 'space-between';
+                    folderHeader.style.cursor = 'pointer';
+                    folderHeader.style.userSelect = 'none';
+                    
+                    // Header title area
+                    const titleArea = document.createElement('div');
+                    titleArea.style.display = 'flex';
+                    titleArea.style.alignItems = 'center';
+                    titleArea.style.gap = '8px';
+                    titleArea.innerHTML = `<span class="material-icons-round" style="color: var(--accent);">folder</span> <span>${folder}</span>`;
+                    
+                    // Toggle Icon
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.className = 'material-icons-round';
+                    toggleIcon.style.color = 'var(--text-muted)';
+                    toggleIcon.innerText = 'expand_more';
+                    
+                    folderHeader.appendChild(titleArea);
+                    folderHeader.appendChild(toggleIcon);
+
+                    // Container untuk daftar file (Sembunyi secara default)
+                    const fileListWrapper = document.createElement('div');
+                    fileListWrapper.style.display = 'none'; // Sembunyikan isi folder
+                    fileListWrapper.style.flexDirection = 'column';
+                    fileListWrapper.style.padding = '4px 0 8px 10px';
+                    fileListWrapper.style.borderLeft = '2px solid var(--border-color)';
+                    fileListWrapper.style.marginLeft = '20px';
+                    fileListWrapper.style.marginTop = '4px';
+                    
+                    let isRendered = false; // Flag Lazy Loading
+
+                    const renderFiles = () => {
+                        if (isRendered) return;
+                        
+                        // Render file di dalam folder tersebut (diurutkan secara natural)
+                        filesByFolder[folder].sort((a, b) => a.shortName.localeCompare(b.shortName, undefined, {numeric: true, sensitivity: 'base'})).forEach(file => {
+                            const fileName = file.name; // Full path
+                            const shortName = file.shortName; // Hanya nama file
+                            const isTranslated = file.translated;
+                            const languages = file.languages || [];
+                            
+                            const div = document.createElement('div');
+                            div.className = 'file-item';
+                            div.style.justifyContent = 'space-between';
+                            div.style.borderRadius = '4px';
+                            div.style.marginBottom = '2px';
+                            
+                            let badgesHTML = '';
+                            if (isTranslated && languages.length > 0) {
+                                badgesHTML = '<div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">';
+                                languages.forEach(lang => {
+                                    badgesHTML += `<span style="background-color: var(--item-active); color: var(--accent); border: 1px solid var(--accent); padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: bold; white-space: nowrap;" title="Diterjemahkan ke ${lang}">${lang}</span>`;
+                                });
+                                badgesHTML += '</div>';
+                            }
+                            
+                            div.innerHTML = `
+                                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                                    <span class="material-icons-round" style="color:var(--text-muted); font-size: 18px;">image</span> 
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</span>
+                                </div>
+                                ${badgesHTML}
+                            `;
+                            
+                            div.onclick = () => {
+                                // Tampilkan gambar dari folder bahan
+                                showImageOnCanvas('/bahan/' + encodeURIComponent(fileName), fileName);
+                                fileModal.style.display = 'none';
+                            };
+                            fileListWrapper.appendChild(div); // Masukkan ke dalam wrapper yang bisa di-toggle
+                        });
+                        isRendered = true;
                     };
-                    fileListContainer.appendChild(div);
+
+                    // Event Toggle Folder
+                    folderHeader.addEventListener('click', () => {
+                        const isHidden = fileListWrapper.style.display === 'none';
+                        
+                        if (isHidden) {
+                            renderFiles(); // Render list file hanya jika folder dibuka (Lazy Load)
+                            localStorage.setItem('lastOpenedFolder', folder); // Ingat folder terakhir yang diklik
+                        }
+                        
+                        fileListWrapper.style.display = isHidden ? 'flex' : 'none';
+                        toggleIcon.innerText = isHidden ? 'expand_less' : 'expand_more';
+                        folderHeader.style.backgroundColor = isHidden ? 'var(--item-active)' : 'var(--item-hover)';
+                        titleArea.querySelector('.material-icons-round').innerText = isHidden ? 'folder_open' : 'folder';
+                    });
+
+                    folderContainer.appendChild(folderHeader);
+                    folderContainer.appendChild(fileListWrapper);
+                    fileListContainer.appendChild(folderContainer);
+                    
+                    // Buka otomatis jika ini adalah folder terakhir yang diakses, atau jika ini satu-satunya folder
+                    if (folder === lastOpenedFolder || (folders.length === 1 && !lastOpenedFolder)) {
+                        renderFiles();
+                        fileListWrapper.style.display = 'flex';
+                        toggleIcon.innerText = 'expand_less';
+                        folderHeader.style.backgroundColor = 'var(--item-active)';
+                        titleArea.querySelector('.material-icons-round').innerText = 'folder_open';
+                        
+                        // Scroll otomatis ke folder yang terbuka
+                        setTimeout(() => {
+                            folderHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                    }
                 });
             } catch(e) {
                 fileListContainer.innerHTML = '<p style="color:red">Gagal memuat daftar file. Pastikan Server Python berjalan.</p>';
@@ -630,6 +763,9 @@
                         textDiv.contentEditable = "true";
                         textDiv.innerText = text;
                         
+                        // Beri batas lebar awal agar tidak melebar satu baris penuh jika teks panjang
+                        textDiv.style.width = "200px";
+                        
                         // Jejerkan ke bawah sedikit-sedikit agar tidak numpuk jadi satu
                         textDiv.style.top = (50 + (i * 40)) + "px";
                         textDiv.style.left = "50px";
@@ -735,6 +871,41 @@
             }
         });
 
+        // ==== FITUR LEWATI TEKS (COPY KE SEMUA BAHASA) ====
+        document.getElementById('btnSkipText').addEventListener('click', async () => {
+            if (!artboard.querySelector('img') || !window.currentFileName) {
+                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                return;
+            }
+
+            const btn = document.getElementById('btnSkipText');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">sync</span> Menyimpan...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/skip_translation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: window.currentFileName })
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert("Berhasil! Gambar tanpa teks telah disalin ke folder hasil untuk bahasa: " + result.languages.join(', '));
+                    if (typeof updateExportHistoryDisplay === 'function') updateExportHistoryDisplay();
+                } else {
+                    alert("Gagal: " + result.message);
+                }
+            } catch (err) {
+                console.error("Gagal Lewati Teks:", err);
+                alert("Terjadi kesalahan koneksi ke server.");
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        });
+
         // Dipisahkan menjadi fungsi agar bisa dipakai oleh tombol "Tambah Teks" dan hasil "Terjemahkan"
         function attachTextEvents(textDiv) {
             let isDragging = false;
@@ -810,8 +981,17 @@
             const resizeObserver = new ResizeObserver(entries => {
                 for (let entry of entries) {
                     const { width, height } = entry.contentRect;
-                    const newFontSize = Math.max(10, height * 0.4);
-                    textDiv.style.fontSize = newFontSize + "px";
+                    
+                    // Hanya scaling jika user sudah melakukan resize manual 
+                    // (ditandai dengan adanya style width/height inline dari browser)
+                    if (textDiv.style.width) {
+                        const newFontSize = Math.max(10, height * 0.4);
+                        // Hindari update jika nilainya sama (mencegah loop tak berujung)
+                        const currentSize = parseFloat(textDiv.style.fontSize);
+                        if (Math.abs(currentSize - newFontSize) > 1) {
+                            textDiv.style.fontSize = newFontSize + "px";
+                        }
+                    }
                 }
                 
                 // Update warna ketika ukuran kotak berubah secara signifikan
