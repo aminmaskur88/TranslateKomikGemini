@@ -269,6 +269,7 @@
     <header class="header-area">
         <div class="logo"><span class="material-icons-round">edit_document</span> <span>TranslateKomik</span></div>
         <div class="header-actions">
+            <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen"><span class="material-icons-round" id="iconFullscreen">fullscreen</span></button>
             <!-- Tombol Export dipindah ke sidebar -->
         </div>
     </header>
@@ -372,6 +373,47 @@
 
     <!-- SCRIPT LOGIC -->
     <script>
+        // ==== FITUR FULLSCREEN ====
+        const btnFullscreen = document.getElementById('btnFullscreen');
+        const iconFullscreen = document.getElementById('iconFullscreen');
+
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                // Masuk mode layar penuh
+                const docElm = document.documentElement;
+                if (docElm.requestFullscreen) docElm.requestFullscreen();
+                else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+                else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+                else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+                iconFullscreen.innerText = 'fullscreen_exit';
+                btnFullscreen.title = 'Keluar Fullscreen';
+            } else {
+                // Keluar dari mode layar penuh
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+                iconFullscreen.innerText = 'fullscreen';
+                btnFullscreen.title = 'Layar Penuh';
+            }
+        });
+
+        // Deteksi perubahan state fullscreen jika keluar menggunakan tombol ESC/kembali di HP
+        document.addEventListener('fullscreenchange', updateFullscreenIcon);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+        document.addEventListener('mozfullscreenchange', updateFullscreenIcon);
+        document.addEventListener('MSFullscreenChange', updateFullscreenIcon);
+
+        function updateFullscreenIcon() {
+            if (!document.fullscreenElement && !document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
+                iconFullscreen.innerText = 'fullscreen';
+                btnFullscreen.title = 'Layar Penuh';
+            } else {
+                iconFullscreen.innerText = 'fullscreen_exit';
+                btnFullscreen.title = 'Keluar Fullscreen';
+            }
+        }
+
         // ==== SISTEM TOAST (PENGGANTI ALERT) ====
         function showToast(message, type = 'info', duration = 4000, action = null) {
             const container = document.getElementById('toastContainer');
