@@ -939,6 +939,17 @@
             const moveProcess = (e) => {
                 if (!isDragging) return;
                 
+                // Jika tombol mouse sudah dilepas (misal di luar window), hentikan drag
+                if (e.type === 'mousemove' && e.buttons === 0) {
+                    moveEnd();
+                    return;
+                }
+
+                // Cegah seleksi teks dan glitch fokus saat digeser menggunakan mouse
+                if (document.activeElement === textDiv) {
+                    textDiv.blur();
+                }
+                
                 // Cegah layar ikut ter-scroll saat sedang menggeser balon teks
                 if (e.cancelable) {
                     e.preventDefault();
@@ -958,6 +969,7 @@
             };
 
             const moveEnd = () => {
+                if (!isDragging) return;
                 isDragging = false;
                 textDiv.style.cursor = "grab";
                 

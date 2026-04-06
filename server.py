@@ -25,11 +25,23 @@ else:
 # Pastikan folder ada
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 if READ_DIR != UPLOAD_DIR:
-    os.makedirs(READ_DIR, exist_ok=True)
+    try:
+        os.makedirs(READ_DIR, exist_ok=True)
+    except OSError as e:
+        print(f"Warning: Tidak dapat membuat direktori READ_DIR '{READ_DIR}'. Detail: {e}")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Lokasi history sekarang mengikuti READ_DIR (folder yang sedang dibuka)
+# Cek apakah bisa menulis di READ_DIR, jika tidak, simpan history di UPLOAD_DIR
 HISTORY_FILE = os.path.join(READ_DIR, 'history.json')
+try:
+    # Coba tes tulis file
+    test_file = os.path.join(READ_DIR, '.test_write')
+    with open(test_file, 'w') as f:
+        f.write('')
+    os.remove(test_file)
+except OSError:
+    HISTORY_FILE = os.path.join(UPLOAD_DIR, 'history.json')
+    print(f"Warning: Tidak dapat menulis di '{READ_DIR}'. History disimpan di '{HISTORY_FILE}'.")
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
