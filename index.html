@@ -80,6 +80,40 @@
             width: auto;
             height: auto;
         }
+
+        /* Gaya Circular Progress untuk Folder */
+        .folder-progress {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .folder-progress svg {
+            width: 32px;
+            height: 32px;
+            transform: rotate(-90deg);
+        }
+        .folder-progress circle {
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+        .folder-progress .bg {
+            stroke: var(--border-color);
+        }
+        .folder-progress .bar {
+            stroke: var(--accent);
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        .folder-progress .pct-text {
+            position: absolute;
+            font-size: 8px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
         .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 4px; display: flex; align-items: center; transition: all 0.2s; }
         .btn-icon:hover { background-color: var(--item-hover); color: var(--text-main); }
         .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
@@ -262,6 +296,19 @@
                 <button id="closeModalBtn" class="btn-icon"><span class="material-icons-round">close</span></button>
             </div>
             <div id="fileListContainer">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Kustom -->
+    <div id="confirmDeleteModal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-box" style="max-width: 320px; text-align: center; padding: 25px;">
+            <span class="material-icons-round" style="font-size: 48px; color: #ef4444; margin-bottom: 15px;">delete_forever</span>
+            <h3 style="margin-bottom: 10px; font-size: 16px;">Hapus File?</h3>
+            <p id="confirmDeleteMessage" style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Apakah Anda yakin ingin menghapus file ini secara permanen?</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btnCancelDelete" class="tool-btn" style="flex: 1; margin: 0; padding: 10px;">Batal</button>
+                <button id="btnConfirmDelete" class="btn-primary" style="flex: 1; background-color: #ef4444; margin: 0; justify-content: center; padding: 10px;">Hapus</button>
+            </div>
         </div>
     </div>
 
@@ -561,6 +608,16 @@
                 const lastOpenedFolder = localStorage.getItem('lastOpenedFolder');
 
                 folders.forEach(folder => {
+                    // Hitung Persentase Folder Ini
+                    const totalFiles = filesByFolder[folder].length;
+                    const translatedFiles = filesByFolder[folder].filter(f => f.translated).length;
+                    const pct = totalFiles > 0 ? Math.round((translatedFiles / totalFiles) * 100) : 0;
+                    
+                    // Lingkaran Progres SVG (Radius 14, Keliling ~88)
+                    const radius = 14;
+                    const dashArray = 2 * Math.PI * radius;
+                    const dashOffset = dashArray - (pct / 100) * dashArray;
+
                     // Container untuk seluruh isi folder (header + list file)
                     const folderContainer = document.createElement('div');
                     folderContainer.style.marginBottom = '4px';
@@ -579,13 +636,28 @@
                     folderHeader.style.justifyContent = 'space-between';
                     folderHeader.style.cursor = 'pointer';
                     folderHeader.style.userSelect = 'none';
+                    folderHeader.style.gap = '10px';
                     
                     // Header title area
                     const titleArea = document.createElement('div');
                     titleArea.style.display = 'flex';
                     titleArea.style.alignItems = 'center';
                     titleArea.style.gap = '8px';
+                    titleArea.style.flex = '1';
                     titleArea.innerHTML = `<span class="material-icons-round" style="color: var(--accent);">folder</span> <span>${folder}</span>`;
+                    
+                    // Indikator Progres Lingkaran
+                    const progressDiv = document.createElement('div');
+                    progressDiv.className = 'folder-progress';
+                    progressDiv.innerHTML = `
+                        <svg>
+                            <circle class="bg" cx="16" cy="16" r="${radius}"></circle>
+                            <circle class="bar" cx="16" cy="16" r="${radius}" 
+                                style="stroke-dasharray: ${dashArray}; stroke-dashoffset: ${dashOffset};">
+                            </circle>
+                        </svg>
+                        <span class="pct-text">${pct}%</span>
+                    `;
                     
                     // Toggle Icon
                     const toggleIcon = document.createElement('span');
@@ -594,6 +666,7 @@
                     toggleIcon.innerText = 'expand_more';
                     
                     folderHeader.appendChild(titleArea);
+                    folderHeader.appendChild(progressDiv); // Masukkan indikator progres
                     folderHeader.appendChild(toggleIcon);
 
                     // Container untuk daftar file (Sembunyi secara default)
@@ -650,10 +723,48 @@
                                 window.currentFolderFiles = sortedFiles.map(f => f.name);
                                 window.currentFileIndex = window.currentFolderFiles.indexOf(fileName);
                             };
+
+                            // FITUR HOLD (LONG PRESS) UNTUK HAPUS FILE
+                            let holdFileTimer;
+                            const startHoldFile = (e) => {
+                                holdFileTimer = setTimeout(() => {
+                                    showDeleteConfirmModal(fileName, shortName, div);
+                                }, 800); // Tahan 800ms untuk hapus
+                            };
+                            const endHoldFile = () => clearTimeout(holdFileTimer);
+
+                            div.addEventListener('mousedown', startHoldFile);
+                            div.addEventListener('mouseup', endHoldFile);
+                            div.addEventListener('mouseleave', endHoldFile);
+                            div.addEventListener('touchstart', startHoldFile, {passive: true});
+                            div.addEventListener('touchend', endHoldFile);
+                            
+                            // Matikan menu klik kanan/tahan lama bawaan browser
+                            div.addEventListener('contextmenu', (e) => e.preventDefault());
+
                             fileListWrapper.appendChild(div); // Masukkan ke dalam wrapper yang bisa di-toggle
                         });
                         isRendered = true;
                     };
+
+                    // Fungsi Menampilkan Konfirmasi Hapus Kustom
+                    function showDeleteConfirmModal(fileName, shortName, element) {
+                        const modal = document.getElementById('confirmDeleteModal');
+                        const msg = document.getElementById('confirmDeleteMessage');
+                        const btnYes = document.getElementById('btnConfirmDelete');
+                        const btnNo = document.getElementById('btnCancelDelete');
+
+                        msg.innerText = `Hapus "${shortName}" secara permanen? Riwayat bahasa yang terikat juga akan dihapus.`;
+                        modal.style.display = 'flex';
+
+                        const close = () => { modal.style.display = 'none'; };
+
+                        btnYes.onclick = () => {
+                            deleteFileFromServer(fileName, element);
+                            close();
+                        };
+                        btnNo.onclick = close;
+                    }
 
                     // Event Toggle Folder
                     folderHeader.addEventListener('click', () => {
@@ -725,6 +836,27 @@
                 alert('Ini adalah gambar terakhir di dalam folder ini.');
             }
         });
+
+        // ==== FUNGSI HAPUS FILE ====
+        async function deleteFileFromServer(fileName, elementToRemove) {
+            try {
+                const response = await fetch('/delete-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: fileName })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    showToast(`File "${fileName}" berhasil dihapus.`, 'success');
+                    elementToRemove.remove(); // Hapus dari daftar tampilan
+                } else {
+                    showToast(`Gagal menghapus file: ${result.message}`, 'error');
+                }
+            } catch (err) {
+                console.error("Gagal Hapus File:", err);
+                showToast("Terjadi kesalahan koneksi ke server.", "error");
+            }
+        }
 
         // Fungsi Umum untuk Menampilkan Gambar di Kertas/Artboard
         let currentZoom = 100;
@@ -1424,12 +1556,25 @@
                     const img = artboard.querySelector('img');
                     if (!img) return;
                     
+                    const titleInput = document.getElementById('comicTitle');
+
                     // Jika saat ini sudah menampilkan versi bahasa ini, balik ke original
                     if (badge.dataset.active === "true") {
                         showImageOnCanvas('/bahan/' + encodeURIComponent(window.currentFileName), window.currentFileName);
+                        
+                        // Kembalikan judul draf (yang sedang diedit sebelum pindah view) jika ada
+                        if (window.originalTitleDraft !== undefined) {
+                            titleInput.value = window.originalTitleDraft;
+                        }
                         return;
                     }
                     
+                    // Simpan judul yang sedang diketik (Draft) hanya jika kita baru mau pindah dari original
+                    const isAnyBadgeActive = historyList.querySelector('span[data-active="true"]');
+                    if (!isAnyBadgeActive) {
+                        window.originalTitleDraft = titleInput.value;
+                    }
+
                     // Reset semua badge lain
                     historyList.querySelectorAll('span').forEach(s => {
                         s.style.backgroundColor = 'var(--item-active)';
@@ -1445,14 +1590,18 @@
                     // Tentukan path hasil (Menyesuaikan logika baru server.py)
                     const subDir = window.currentFileName.includes('/') ? window.currentFileName.substring(0, window.currentFileName.lastIndexOf('/')) : '';
                     
-                    // Gunakan nama file asli jika format riwayat masih lama (array), 
-                    // atau gunakan nama file baru dari server (dict)
-                    const outputName = Array.isArray(historyData) ? window.currentFileName.split('/').pop() : historyData[lang];
+                    // Gunakan logika pintar untuk data format baru (object) maupun lama (string)
+                    const entry = historyData[lang];
+                    const outputName = (typeof entry === 'object') ? entry.filename : entry;
+                    const savedTitle = (typeof entry === 'object') ? entry.title : "";
                     
                     const resultPath = `/hasil/${lang}/${subDir ? subDir + '/' : ''}${outputName}`;
                     
                     // Ganti sumber gambar
                     img.src = resultPath;
+                    
+                    // Update Judul Komik di Input (Tampilkan yang tersimpan atau kosongkan)
+                    titleInput.value = savedTitle || "";
                     
                     // Sembunyikan semua elemen edit (bubble, dsb) agar tidak numpuk di gambar hasil
                     artboard.querySelectorAll('.comic-text, #floatingDeleteBtn').forEach(el => el.style.display = 'none');

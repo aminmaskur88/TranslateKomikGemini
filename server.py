@@ -81,8 +81,25 @@ def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
+                data = json.load(f)
+                
+                # MIGRASI GLOBAL: Pastikan semua data lama mengikuti format baru {lang: {filename, title}}
+                modified = False
+                for file_key in data:
+                    if isinstance(data[file_key], list):
+                        data[file_key] = {l: {"filename": os.path.basename(file_key), "title": ""} for l in data[file_key]}
+                        modified = True
+                    elif isinstance(data[file_key], dict):
+                        for lang in data[file_key]:
+                            if isinstance(data[file_key][lang], str):
+                                data[file_key][lang] = {"filename": data[file_key][lang], "title": ""}
+                                modified = True
+                
+                if modified:
+                    save_history(data)
+                return data
+        except Exception as e:
+            print(f"Error loading history: {e}")
             return {}
     return {}
 
@@ -437,16 +454,24 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 output_path = os.path.join(lang_dir, output_filename)
                 img.save(output_path, quality=95)
                 
-                # Simpan Riwayat Export ke File history.json (Format Baru: {ori: {lang: output_name}})
+                # Simpan Riwayat Export ke File history.json (Format Baru: {ori: {lang: {filename, title}}})
                 history = load_history()
                 if rel_filename not in history:
                     history[rel_filename] = {}
                 
-                # Migrasi jika masih format lama (List)
+                # Migrasi jika masih format lama (List atau Dict of strings)
                 if isinstance(history[rel_filename], list):
-                    history[rel_filename] = {l: os.path.basename(rel_filename) for l in history[rel_filename]}
+                    history[rel_filename] = {l: {"filename": os.path.basename(rel_filename), "title": ""} for l in history[rel_filename]}
                 
-                history[rel_filename][safe_lang] = output_filename
+                # Pastikan setiap entry adalah dict
+                for lang_key in list(history[rel_filename].keys()):
+                    if isinstance(history[rel_filename][lang_key], str):
+                        history[rel_filename][lang_key] = {"filename": history[rel_filename][lang_key], "title": ""}
+
+                history[rel_filename][safe_lang] = {
+                    "filename": output_filename,
+                    "title": comic_title
+                }
                 save_history(history)
                 
                 # Catat progres harian
@@ -500,7 +525,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 
                 # Migrasi jika format lama
                 if isinstance(history[rel_filename], list):
-                    history[rel_filename] = {l: os.path.basename(rel_filename) for l in history[rel_filename]}
+                    history[rel_filename] = {l: {"filename": os.path.basename(rel_filename), "title": ""} for l in history[rel_filename]}
 
                 sub_dir = os.path.dirname(rel_filename)
                 base_name = os.path.basename(rel_filename)
@@ -512,8 +537,11 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     
                     shutil.copy2(source_path, output_path)
                     
-                    # Simpan nama file output (di sini sama dengan base_name)
-                    history[rel_filename][lang] = base_name
+                    # Simpan dalam format baru (dict)
+                    history[rel_filename][lang] = {
+                        "filename": base_name,
+                        "title": ""
+                    }
                         
                 save_history(history)
                 track_progress(rel_filename)
@@ -531,6 +559,41 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
 
             except Exception as e:
                 print(f"Error Skip Translation: {e}")
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode('utf-8'))
+                return
+
+        elif self.path == '/delete-file':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                rel_filename = data['fileName']
+                source_path = os.path.join(UPLOAD_DIR, rel_filename)
+                if not os.path.exists(source_path):
+                    source_path = os.path.join(READ_DIR, rel_filename)
+                
+                if os.path.exists(source_path):
+                    os.remove(source_path)
+                    
+                    # Bersihkan Riwayat
+                    history = load_history()
+                    if rel_filename in history:
+                        del history[rel_filename]
+                        save_history(history)
+                    
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'status': 'success', 'message': 'File berhasil dihapus'}).encode('utf-8'))
+                else:
+                    raise FileNotFoundError("File tidak ditemukan")
+
+            except Exception as e:
+                print(f"Error Deleting File: {e}")
                 self.send_response(500)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
