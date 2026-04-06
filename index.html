@@ -51,7 +51,7 @@
         .option-row { display: flex; align-items: center; justify-content: space-between; }
         .select-box { background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none; }
         .workspace-area { grid-area: workspace; background-color: var(--bg-workspace); display: flex; flex-direction: column; position: relative; overflow: hidden; }
-        .canvas-toolbar { height: 42px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 12px; }
+        .canvas-toolbar { min-height: 42px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 12px; flex-wrap: wrap; gap: 10px; }
         .canvas-wrapper { 
             flex: 1; 
             overflow: auto; /* Mengizinkan scrolling */
@@ -330,10 +330,6 @@
             <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan (Gambar)</button>
             <button id="btnRetranslate" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px;"><span class="material-icons-round">g_translate</span> Ganti Bahasa (Teks)</button>
             <button id="btnSkipText" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px; border-color: #10b981; color: #10b981; background-color: #ecfdf5;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
-            <div id="exportHistoryBox" style="display: none; font-size: 11px; margin-top: 12px; color: var(--text-muted); border-top: 1px dashed var(--border-color); padding-top: 8px;">
-                Telah di-export ke:<br>
-                <div id="exportHistoryList" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;"></div>
-            </div>
         </div>
         
         <div class="divider-horizontal"></div>
@@ -353,10 +349,17 @@
                 <span id="canvasResolution" style="display:none;">800x1200</span>
                 <input type="text" id="comicTitle" class="select-box" placeholder="Judul Komik (Otomatis/Manual)" style="width: 250px; font-weight: bold; background: transparent; border-color: transparent;">
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <button id="btnZoomOut" class="btn-icon"><span class="material-icons-round">zoom_out</span></button>
-                <span id="zoomText" style="font-weight: 600; color: var(--text-main);">100%</span>
-                <button id="btnZoomIn" class="btn-icon"><span class="material-icons-round">zoom_in</span></button>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div id="exportHistoryBox" style="display: none; font-size: 11px; color: var(--text-muted); align-items: center; gap: 6px;">
+                    Telah di-export ke:
+                    <div id="exportHistoryList" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+                </div>
+                <div style="height: 16px; width: 1px; background-color: var(--border-color);"></div> <!-- Pemisah vertikal -->
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <button id="btnZoomOut" class="btn-icon"><span class="material-icons-round">zoom_out</span></button>
+                    <span id="zoomText" style="font-weight: 600; color: var(--text-main); min-width: 40px; text-align: center;">100%</span>
+                    <button id="btnZoomIn" class="btn-icon"><span class="material-icons-round">zoom_in</span></button>
+                </div>
             </div>
         </div>
         
@@ -1326,7 +1329,7 @@
                 return;
             }
             
-            historyBox.style.display = 'block';
+            historyBox.style.display = 'flex';
             historyList.innerHTML = '';
             
             window.exportHistory[window.currentFileName].forEach(lang => {
