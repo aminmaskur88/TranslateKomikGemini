@@ -85,6 +85,41 @@
         .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .btn-primary:hover { background-color: var(--accent-hover); }
         
+        /* Gaya Toast Notification (Pengganti Alert) */
+        #toastContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background-color: var(--bg-panel);
+            color: var(--text-main);
+            border-left: 4px solid var(--accent);
+            padding: 12px 20px;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 250px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: auto;
+            border: 1px solid var(--border-color);
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-left-color: #ef4444; }
+        .toast.success { border-left-color: #10b981; }
+        .toast.info { border-left-color: var(--accent); }
+        
         /* Tooltip Mode Pengembang (Muncul saat di-hold) */
         .hold-tooltip {
             display: none;
@@ -163,6 +198,12 @@
             cursor: nwse-resize;
         }
 
+        .file-item {
+            padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;
+        }
+        .file-item:hover { background: var(--item-hover); }
+        .file-item:last-child { border-bottom: none; }
+
         /* Modal Styles */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -172,11 +213,6 @@
             background: var(--bg-panel); padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;
             max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column;
         }
-        .file-item {
-            padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;
-        }
-        .file-item:hover { background: var(--item-hover); }
-        .file-item:last-child { border-bottom: none; }
 
         @media (max-width: 768px) {
             body { 
@@ -212,6 +248,7 @@
     </style>
 </head>
 <body>
+    <div id="toastContainer"></div>
     <!-- Hidden Input for File Upload -->
     <input type="file" id="fileUploadInput" accept="image/*" style="display: none;">
 
@@ -230,7 +267,7 @@
     <header class="header-area">
         <div class="logo"><span class="material-icons-round">edit_document</span> <span>TranslateKomik</span></div>
         <div class="header-actions">
-            <button id="btnExport" class="btn-primary"><span class="material-icons-round">download</span> Export</button>
+            <!-- Tombol Export dipindah ke sidebar -->
         </div>
     </header>
 
@@ -246,6 +283,15 @@
                     <span class="material-icons-round">folder_open</span><span>Buka</span>
                 </button>
             </div>
+            <div class="tool-grid" style="margin-top: 2px;">
+                <button class="tool-btn" id="btnPrevImage" style="flex-direction: row; justify-content: center; padding: 8px;" title="Gambar Sebelumnya">
+                    <span class="material-icons-round">navigate_before</span><span>Prev</span>
+                </button>
+                <button class="tool-btn" id="btnNextImage" style="flex-direction: row; justify-content: center; padding: 8px;" title="Gambar Selanjutnya">
+                    <span>Next</span><span class="material-icons-round">navigate_next</span>
+                </button>
+            </div>
+            <button id="btnExport" class="btn-primary" style="width: 100%; margin-top: 4px;"><span class="material-icons-round">download</span> Export (Simpan HD)</button>
             <!-- Progress indicator -->
             <div id="uploadStatus" style="font-size: 11px; color: var(--accent); display: none; text-align: center; margin-top: 5px;">Mengupload...</div>
         </div>
@@ -324,6 +370,54 @@
 
     <!-- SCRIPT LOGIC -->
     <script>
+        // ==== SISTEM TOAST (PENGGANTI ALERT) ====
+        function showToast(message, type = 'info', duration = 4000, action = null) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = 'info';
+            if (type === 'success') icon = 'check_circle';
+            if (type === 'error') icon = 'error';
+
+            toast.innerHTML = `
+                <span class="material-icons-round" style="color: inherit; font-size: 20px;">${icon}</span>
+                <span style="flex: 1;">${message}</span>
+            `;
+
+            if (action) {
+                const btn = document.createElement('button');
+                btn.innerText = action.text;
+                btn.style.cssText = "background: var(--bg-app); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; color: var(--text-main); cursor: pointer; transition: background 0.2s;";
+                btn.onmouseover = () => btn.style.background = "var(--item-hover)";
+                btn.onmouseout = () => btn.style.background = "var(--bg-app)";
+                btn.onclick = () => {
+                    if (action.onClick) action.onClick();
+                    // Tutup toast setelah tombol aksi diklik
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                };
+                toast.appendChild(btn);
+            }
+
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // Auto remove (jika durasi tidak 0)
+            if (duration > 0) {
+                setTimeout(() => {
+                    if(toast.parentElement) {
+                        toast.classList.remove('show');
+                        setTimeout(() => toast.remove(), 300);
+                    }
+                }, duration);
+            }
+        }
+
         const btnUpload = document.getElementById('btnUpload');
         const fileUploadInput = document.getElementById('fileUploadInput');
         const artboard = document.getElementById('artboard');
@@ -461,7 +555,8 @@
                         if (isRendered) return;
                         
                         // Render file di dalam folder tersebut (diurutkan secara natural)
-                        filesByFolder[folder].sort((a, b) => a.shortName.localeCompare(b.shortName, undefined, {numeric: true, sensitivity: 'base'})).forEach(file => {
+                        const sortedFiles = filesByFolder[folder].sort((a, b) => a.shortName.localeCompare(b.shortName, undefined, {numeric: true, sensitivity: 'base'}));
+                        sortedFiles.forEach(file => {
                             const fileName = file.name; // Full path
                             const shortName = file.shortName; // Hanya nama file
                             const isTranslated = file.translated;
@@ -494,6 +589,10 @@
                                 // Tampilkan gambar dari folder bahan
                                 showImageOnCanvas('/bahan/' + encodeURIComponent(fileName), fileName);
                                 fileModal.style.display = 'none';
+                                
+                                // Simpan state untuk tombol prev/next
+                                window.currentFolderFiles = sortedFiles.map(f => f.name);
+                                window.currentFileIndex = window.currentFolderFiles.indexOf(fileName);
                             };
                             fileListWrapper.appendChild(div); // Masukkan ke dalam wrapper yang bisa di-toggle
                         });
@@ -540,6 +639,35 @@
 
         closeModalBtn.addEventListener('click', () => {
             fileModal.style.display = 'none';
+        });
+
+        // ==== FITUR NAVIGASI GAMBAR (PREV/NEXT) ====
+        document.getElementById('btnPrevImage').addEventListener('click', () => {
+            if (!window.currentFolderFiles || window.currentFolderFiles.length === 0) {
+                alert('Buka sebuah file dari folder @bahan terlebih dahulu untuk menggunakan navigasi!');
+                return;
+            }
+            if (window.currentFileIndex > 0) {
+                window.currentFileIndex--;
+                const prevFile = window.currentFolderFiles[window.currentFileIndex];
+                showImageOnCanvas('/bahan/' + encodeURIComponent(prevFile), prevFile);
+            } else {
+                alert('Ini adalah gambar pertama di dalam folder ini.');
+            }
+        });
+
+        document.getElementById('btnNextImage').addEventListener('click', () => {
+            if (!window.currentFolderFiles || window.currentFolderFiles.length === 0) {
+                alert('Buka sebuah file dari folder @bahan terlebih dahulu untuk menggunakan navigasi!');
+                return;
+            }
+            if (window.currentFileIndex < window.currentFolderFiles.length - 1) {
+                window.currentFileIndex++;
+                const nextFile = window.currentFolderFiles[window.currentFileIndex];
+                showImageOnCanvas('/bahan/' + encodeURIComponent(nextFile), nextFile);
+            } else {
+                alert('Ini adalah gambar terakhir di dalam folder ini.');
+            }
         });
 
         // Fungsi Umum untuk Menampilkan Gambar di Kertas/Artboard
@@ -616,12 +744,12 @@
             const texts = document.querySelectorAll('.comic-text');
             
             if (!imgEl || !window.currentFileName) {
-                alert("Tidak ada gambar untuk di-export!");
+                showToast("Tidak ada gambar untuk di-export!", "error");
                 return;
             }
 
             if (texts.length === 0) {
-                alert("Tambahkan teks terlebih dahulu!");
+                showToast("Tambahkan teks terlebih dahulu!", "info");
                 return;
             }
 
@@ -682,18 +810,19 @@
                 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    alert("Export Berhasil! Gambar HD disimpan di folder 'hasil'.");
+                    showToast("Export Berhasil! Gambar HD disimpan di folder 'hasil'.", "success", 6000, {
+                        text: "Buka",
+                        onClick: () => window.open(result.url, '_blank')
+                    });
                     
                     // Ambil pembaruan riwayat dari server yang barusan nyimpen file
                     if (typeof updateExportHistoryDisplay === 'function') updateExportHistoryDisplay();
                     
-                    // Opsi: Langsung buka hasil
-                    window.open(result.url, '_blank');
                 } else {
-                    alert("Gagal Export: " + result.message);
+                    showToast("Gagal Export: " + result.message, "error");
                 }
             } catch (err) {
-                alert("Terjadi kesalahan koneksi ke server.");
+                showToast("Terjadi kesalahan koneksi ke server.", "error");
                 console.error(err);
             } finally {
                 btn.innerHTML = originalHTML;
@@ -713,7 +842,7 @@
 
         document.getElementById('btnTranslate').addEventListener('click', async () => {
             if (!artboard.querySelector('img') || !window.currentFileName) {
-                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                showToast("Silakan upload atau buka gambar komik terlebih dahulu!", "error");
                 return;
             }
 
@@ -728,7 +857,7 @@
             if (targetLang === 'Manual') {
                 targetLang = document.getElementById('manualTargetLang').value.trim();
                 if (!targetLang) {
-                    alert("Masukkan bahasa tujuan secara manual!");
+                    showToast("Masukkan bahasa tujuan secara manual!", "info");
                     btn.innerHTML = originalHTML;
                     btn.disabled = false;
                     return;
@@ -749,7 +878,7 @@
                 const data = await response.json();
                 
                 if (data.error) {
-                    alert("API Error: " + data.error);
+                    showToast("API Error: " + data.error, "error");
                 } else if (data.translations && data.translations.length > 0) {
                     // Set judul otomatis dari Gemini jika ada
                     if (data.title) {
@@ -763,11 +892,14 @@
                         textDiv.contentEditable = "true";
                         textDiv.innerText = text;
                         
-                        // Beri batas lebar awal agar tidak melebar satu baris penuh jika teks panjang
+                        // Beri ukuran lebar, tinggi, dan font awal yang pasti agar semua sama rata 
+                        // dan tidak menyebabkan lonjakan tata letak (layout shift).
                         textDiv.style.width = "200px";
+                        textDiv.style.height = "100px";
+                        textDiv.style.fontSize = "16px";
                         
-                        // Jejerkan ke bawah sedikit-sedikit agar tidak numpuk jadi satu
-                        textDiv.style.top = (50 + (i * 40)) + "px";
+                        // Jejerkan ke bawah rapi tanpa numpuk
+                        textDiv.style.top = (50 + (i * 110)) + "px";
                         textDiv.style.left = "50px";
 
                         // Pasang semua event handler drag & drop sama seperti tambah manual
@@ -787,13 +919,13 @@
                         detectedBox.style.display = 'none';
                     }
 
-                    alert(`Berhasil menerjemahkan ${data.translations.length} teks!`);
+                    showToast(`Berhasil menerjemahkan ${data.translations.length} teks!`, "success");
                 } else {
-                    alert("Tidak ada teks yang berhasil dideteksi.");
+                    showToast("Tidak ada teks yang berhasil dideteksi.", "info");
                 }
             } catch (err) {
                 console.error("Gagal Terjemahkan:", err);
-                alert("Terjadi kesalahan koneksi ke server penerjemah.");
+                showToast("Terjadi kesalahan koneksi ke server penerjemah.", "error");
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
@@ -807,7 +939,7 @@
             const hasTitle = titleInput.value.trim() !== '';
 
             if (texts.length === 0 && !hasTitle) {
-                alert("Tidak ada kotak teks di canvas atau judul komik untuk diganti bahasanya!");
+                showToast("Tidak ada kotak teks di canvas atau judul komik untuk diganti bahasanya!", "info");
                 return;
             }
 
@@ -815,7 +947,7 @@
             if (targetLang === 'Manual') {
                 targetLang = document.getElementById('manualTargetLang').value.trim();
                 if (!targetLang) {
-                    alert("Masukkan bahasa tujuan secara manual!");
+                    showToast("Masukkan bahasa tujuan secara manual!", "info");
                     return;
                 }
             }
@@ -836,16 +968,16 @@
                 const response = await fetch('/translate_texts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.loads(JSON.stringify({ 
                         texts: textArray,
                         target_lang: targetLang
-                    })
+                    }))
                 });
                 
                 const data = await response.json();
                 
                 if (data.error) {
-                    alert("API Error: " + data.error);
+                    showToast("API Error: " + data.error, "error");
                 } else if (data.translations && data.translations.length === textArray.length) {
                     
                     // Ambil terjemahan judul di array paling belakang, lalu kurangi arraynya
@@ -860,11 +992,11 @@
                     });
                     
                 } else {
-                    alert("Gagal memproses terjemahan atau jumlah teks yang dikembalikan tidak cocok.");
+                    showToast("Gagal memproses terjemahan atau jumlah teks yang dikembalikan tidak cocok.", "error");
                 }
             } catch (err) {
                 console.error("Gagal Mengganti Bahasa:", err);
-                alert("Terjadi kesalahan koneksi ke server penerjemah.");
+                showToast("Terjadi kesalahan koneksi ke server penerjemah.", "error");
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
@@ -874,7 +1006,7 @@
         // ==== FITUR LEWATI TEKS (COPY KE SEMUA BAHASA) ====
         document.getElementById('btnSkipText').addEventListener('click', async () => {
             if (!artboard.querySelector('img') || !window.currentFileName) {
-                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                showToast("Silakan upload atau buka gambar komik terlebih dahulu!", "error");
                 return;
             }
 
@@ -892,14 +1024,14 @@
                 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    alert("Berhasil! Gambar tanpa teks telah disalin ke folder hasil untuk bahasa: " + result.languages.join(', '));
+                    showToast("Berhasil! Gambar tanpa teks telah disalin ke folder hasil untuk bahasa: " + result.languages.join(', '), "success");
                     if (typeof updateExportHistoryDisplay === 'function') updateExportHistoryDisplay();
                 } else {
-                    alert("Gagal: " + result.message);
+                    showToast("Gagal: " + result.message, "error");
                 }
             } catch (err) {
                 console.error("Gagal Lewati Teks:", err);
-                alert("Terjadi kesalahan koneksi ke server.");
+                showToast("Terjadi kesalahan koneksi ke server.", "error");
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
@@ -996,11 +1128,14 @@
                     
                     // Hanya scaling jika user sudah melakukan resize manual 
                     // (ditandai dengan adanya style width/height inline dari browser)
-                    if (textDiv.style.width) {
-                        const newFontSize = Math.max(6, height * 0.4);
-                        // Hindari update jika nilainya sama (mencegah loop tak berujung)
-                        const currentSize = parseFloat(textDiv.style.fontSize);
-                        if (Math.abs(currentSize - newFontSize) > 1) {
+                    if (textDiv.style.width || textDiv.style.height) {
+                        let newFontSize = Math.max(6, height * 0.4); // Tebakan awal
+                        textDiv.style.fontSize = newFontSize + "px";
+                        
+                        // Logika Anti-Nembus: Perkecil font jika teks memanjang melebihi batas kotak (width/height)
+                        // Lakukan loop hingga teks pas di dalam kotak atau mencapai batas minimum 6px
+                        while ((textDiv.scrollHeight > textDiv.clientHeight || textDiv.scrollWidth > textDiv.clientWidth) && newFontSize > 6) {
+                            newFontSize--;
                             textDiv.style.fontSize = newFontSize + "px";
                         }
                     }
@@ -1023,8 +1158,17 @@
                 }
             });
 
-            // Lacak kotak teks yang sedang aktif/diedit
-            const setActive = () => { window.activeTextBox = textDiv; };
+            // Lacak kotak teks yang sedang aktif/diedit dan angkat ke layer paling atas
+            const setActive = () => { 
+                window.activeTextBox = textDiv; 
+                
+                // Pastikan variabel untuk melacak z-index tertinggi sudah ada (mulai dari 50, sama seperti di CSS)
+                if (!window.highestZIndex) window.highestZIndex = 50;
+                window.highestZIndex++;
+                
+                // Set z-index kotak yang diklik menjadi paling tinggi
+                textDiv.style.zIndex = window.highestZIndex;
+            };
             textDiv.addEventListener('focus', setActive);
             textDiv.addEventListener('mousedown', setActive);
             textDiv.addEventListener('touchstart', setActive, {passive: true});
@@ -1042,7 +1186,7 @@
         // ==== FITUR TAMBAH TEKS (MANUAL) ====
         document.getElementById('btnAddText').addEventListener('click', () => {
             if (!artboard.querySelector('img')) {
-                alert("Silakan upload atau buka gambar komik terlebih dahulu!");
+                showToast("Silakan upload atau buka gambar komik terlebih dahulu!", "error");
                 return;
             }
 
@@ -1051,6 +1195,11 @@
             textDiv.contentEditable = "true";
             textDiv.innerText = "Ketik Teks...";
             
+            // Atur ukuran kotak dan font standar yang pasti saat awal kali ditambah
+            textDiv.style.width = "150px";
+            textDiv.style.height = "50px";
+            textDiv.style.fontSize = "16px";
+
             textDiv.style.top = "50px";
             textDiv.style.left = "50px";
 

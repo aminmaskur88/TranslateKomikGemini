@@ -307,32 +307,39 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     text_color = el['textColor'].replace('rgb(', '').replace(')', '').split(',')
                     text_tuple = (int(text_color[0]), int(text_color[1]), int(text_color[2]))
                     
-                    try:
-                        font = ImageFont.truetype(FONT_PATH, int(el['fontSize']))
-                    except:
-                        font = ImageFont.load_default()
-                    
-                    x, y, w, h = el['x'], el['y'], el['w'], el['h']
-                    
-                    # LOGIKA BARU: Paksa teks jadi huruf kapital dan gunakan wrap_text_pil
+                    # LOGIKA RENDER HD: Shrink-to-fit (Pastikan teks tidak nembus box HD)
+                    current_font_size = int(el['fontSize'])
                     text_upper = el['text'].upper()
-                    # Kurangi lebar sedikit (padding internal 10px) agar teks tidak mepet garis
-                    lines = wrap_text_pil(text_upper, font, w - 10, draw)
                     
-                    # Hitung total tinggi blok teks untuk pemusatan vertikal
-                    line_heights = []
-                    for line in lines:
-                        if not line: # baris kosong
-                            line_heights.append(int(el['fontSize']))
-                            continue
-                        bbox = draw.textbbox((0, 0), line, font=font)
-                        line_heights.append(bbox[3] - bbox[1] if bbox[3] > bbox[1] else int(el['fontSize']))
-                    
-                    line_spacing = 4
-                    total_text_height = sum(line_heights) + (max(0, len(lines) - 1)) * line_spacing
-                    
+                    while current_font_size > 6:
+                        try:
+                            font = ImageFont.truetype(FONT_PATH, current_font_size)
+                        except:
+                            font = ImageFont.load_default()
+                        
+                        # Bungkus teks berdasarkan lebar box (padding 10px)
+                        lines = wrap_text_pil(text_upper, font, w - 10, draw)
+                        
+                        # Hitung total tinggi blok teks
+                        line_heights = []
+                        for line in lines:
+                            if not line:
+                                line_heights.append(current_font_size)
+                                continue
+                            bbox = draw.textbbox((0, 0), line, font=font)
+                            line_heights.append(bbox[3] - bbox[1] if bbox[3] > bbox[1] else current_font_size)
+                        
+                        line_spacing = 4
+                        total_text_height = sum(line_heights) + (max(0, len(lines) - 1)) * line_spacing
+                        
+                        # Jika sudah cukup (tinggi teks <= tinggi box), berhenti mengecilkan
+                        if total_text_height <= h:
+                            break
+                        
+                        # Jika masih nembus, kurangi ukuran font dan ulangi pembungkusan
+                        current_font_size -= 1
+
                     # Mulai menggambar dari posisi Y agar teks di tengah secara vertikal
-                    # Jika teks lebih tinggi dari box, mulai dari atas box (y) agar tidak meleber ke atas
                     if total_text_height > h:
                         current_y = y
                     else:
