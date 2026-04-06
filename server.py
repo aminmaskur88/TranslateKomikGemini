@@ -511,10 +511,12 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     raise FileNotFoundError(f"File {rel_filename} tidak ditemukan di bahan maupun {READ_DIR}.")
 
                 import shutil
-                # Ambil daftar bahasa dari folder hasil/
+                # Ambil daftar bahasa yang VALID (Pernah ada di folder hasil)
                 languages = []
                 if os.path.exists(OUTPUT_DIR):
-                    languages = [d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))]
+                    # Filter: Hanya ambil folder yang benar-benar berisi hasil terjemahan (Bukan Jawa)
+                    languages = [d for d in os.listdir(OUTPUT_DIR) 
+                                if os.path.isdir(os.path.join(OUTPUT_DIR, d)) and d not in ["Jawa", ".git", "__pycache__"]]
                 
                 if not languages:
                     languages = ["Indonesia"] # Default jika kosong

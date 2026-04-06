@@ -114,6 +114,15 @@
             color: var(--text-main);
         }
 
+        /* Sembunyikan Scrollbar pada List Export */
+        #exportHistoryList::-webkit-scrollbar {
+            display: none;
+        }
+        #exportHistoryList {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
         .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 4px; display: flex; align-items: center; transition: all 0.2s; }
         .btn-icon:hover { background-color: var(--item-hover); color: var(--text-main); }
         .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
@@ -401,9 +410,14 @@
                 <span id="canvasResolution" style="display:none;">800x1200</span>
                 <input type="text" id="comicTitle" class="select-box" placeholder="Judul Komik (Otomatis/Manual)" style="width: 250px; font-weight: bold; background: transparent; border-color: transparent;">
             </div>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div id="exportHistoryBox" style="display: none; font-size: 11px; color: var(--text-muted); align-items: center; gap: 6px;">
-                    <div id="exportHistoryList" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+            <div style="display: flex; align-items: center; gap: 15px; min-width: 0; flex: 1; justify-content: flex-end;">
+                <div id="exportHistoryBox" style="display: none; font-size: 11px; color: var(--text-muted); align-items: center; gap: 6px; overflow: hidden; min-width: 0;">
+                    <div id="exportHistoryList" style="display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch;"></div>
+                </div>
+                <div style="height: 16px; width: 1px; background-color: var(--border-color); flex-shrink: 0;"></div> <!-- Pemisah vertikal -->
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <button id="btnUndo" class="btn-icon" title="Undo (Ctrl+Z)"><span class="material-icons-round">undo</span></button>
+                    <button id="btnRedo" class="btn-icon" title="Redo (Ctrl+Y)"><span class="material-icons-round">redo</span></button>
                 </div>
                 <div style="height: 16px; width: 1px; background-color: var(--border-color);"></div> <!-- Pemisah vertikal -->
                 <div style="display: flex; align-items: center; gap: 4px;">
@@ -427,6 +441,122 @@
 
     <!-- SCRIPT LOGIC -->
     <script>
+        // Paksa bersihkan data lama yang mungkin nyangkut di memori browser
+        localStorage.clear(); 
+        window.exportHistory = {};
+        
+        // ==== SISTEM UNDO / REDO ====
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 40;
+        let isApplyingState = false;
+
+        function saveState() {
+            if (isApplyingState) return;
+            
+            const currentState = {
+                title: document.getElementById('comicTitle').value,
+                elements: Array.from(document.querySelectorAll('.comic-text')).map(el => ({
+                    text: el.innerText,
+                    left: el.style.left,
+                    top: el.style.top,
+                    width: el.style.width,
+                    height: el.style.height,
+                    fontSize: el.style.fontSize,
+                    zIndex: el.style.zIndex,
+                    backgroundColor: el.style.backgroundColor,
+                    color: el.style.color
+                }))
+            };
+            
+            // Hindari menyimpan state yang sama persis berturut-turut
+            if (undoStack.length > 0) {
+                const lastState = JSON.stringify(undoStack[undoStack.length - 1]);
+                if (lastState === JSON.stringify(currentState)) return;
+            }
+
+            undoStack.push(currentState);
+            if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            redoStack = []; // Reset redo saat ada aksi baru
+            updateUndoRedoButtons();
+        }
+
+        function applyState(state) {
+            if (!state) return;
+            isApplyingState = true;
+            
+            // Restore Judul
+            document.getElementById('comicTitle').value = state.title;
+
+            // Restore Bubbles: Hapus semua bubble lama dan buat ulang dari state
+            document.querySelectorAll('.comic-text').forEach(el => el.remove());
+            
+            state.elements.forEach(data => {
+                const textDiv = document.createElement('div');
+                textDiv.className = 'comic-text';
+                textDiv.contentEditable = "true";
+                textDiv.innerText = data.text;
+                textDiv.style.left = data.left;
+                textDiv.style.top = data.top;
+                textDiv.style.width = data.width;
+                textDiv.style.height = data.height;
+                textDiv.style.fontSize = data.fontSize;
+                textDiv.style.zIndex = data.zIndex;
+                textDiv.style.backgroundColor = data.backgroundColor;
+                textDiv.style.color = data.color;
+                
+                attachTextEvents(textDiv);
+                artboard.appendChild(textDiv);
+            });
+            
+            // Sync z-index tertinggi
+            const zIndexes = state.elements.map(e => parseInt(e.zIndex) || 50);
+            if (zIndexes.length > 0) window.highestZIndex = Math.max(...zIndexes);
+            
+            updateUndoRedoButtons();
+            updateFloatingDeleteBtn();
+            isApplyingState = false;
+        }
+
+        function undo() {
+            if (undoStack.length <= 1) return;
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+            applyState(undoStack[undoStack.length - 1]);
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            const state = redoStack.pop();
+            undoStack.push(state);
+            applyState(state);
+        }
+
+        function updateUndoRedoButtons() {
+            const btnUndo = document.getElementById('btnUndo');
+            const btnRedo = document.getElementById('btnRedo');
+            if (!btnUndo || !btnRedo) return;
+            
+            btnUndo.disabled = undoStack.length <= 1;
+            btnRedo.disabled = redoStack.length === 0;
+            btnUndo.style.opacity = (undoStack.length <= 1) ? "0.3" : "1";
+            btnRedo.style.opacity = (redoStack.length === 0) ? "0.3" : "1";
+        }
+
+        document.getElementById('btnUndo').onclick = undo;
+        document.getElementById('btnRedo').onclick = redo;
+
+        // Keyboard Shortcut: Ctrl+Z (Undo) & Ctrl+Y (Redo)
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey) {
+                if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+                if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+            }
+        });
+
+        // Simpan state saat judul berubah
+        document.getElementById('comicTitle').onblur = saveState;
+
         // ==== FITUR FULLSCREEN ====
         const btnFullscreen = document.getElementById('btnFullscreen');
         const iconFullscreen = document.getElementById('iconFullscreen');
@@ -1148,6 +1278,8 @@
                         updateDominantColor(textDiv);
                     });
                     
+                    saveState(); // Simpan riwayat setelah terjemahan selesai
+                    
                     // Tampilkan bahasa asal yang terdeteksi jika pakai Auto
                     const detectedBox = document.getElementById('detectedLangBox');
                     if (sourceLang === 'Auto' && data.detected_language) {
@@ -1351,6 +1483,7 @@
                 }
                 
                 updateFloatingDeleteBtn();
+                saveState(); // Simpan riwayat setelah selesai geser
             };
 
             // Event Desktop
@@ -1387,6 +1520,7 @@
                 if (document.activeElement !== textDiv) {
                     updateDominantColor(textDiv);
                 }
+                saveState(); // Simpan riwayat setelah selesai resize
             });
             resizeObserver.observe(textDiv);
 
@@ -1395,8 +1529,10 @@
                     resizeObserver.unobserve(textDiv); // Stop observing before delete
                     textDiv.remove();
                     if (window.activeTextBox === textDiv) window.activeTextBox = null;
+                    saveState(); // Simpan setelah auto-delete
                 } else {
                     updateDominantColor(textDiv);
+                    saveState(); // Simpan setelah selesai edit teks
                 }
             });
 
@@ -1435,6 +1571,7 @@
                         window.activeTextBox.remove();
                         window.activeTextBox = null;
                         btn.style.display = 'none';
+                        saveState(); // Simpan riwayat setelah hapus
                     }
                 };
                 
@@ -1495,6 +1632,7 @@
             updateDominantColor(textDiv);
             artboard.appendChild(textDiv);
             textDiv.focus(); 
+            saveState(); // Simpan riwayat setelah tambah
         });
 
         async function fetchHistory() {
@@ -1651,6 +1789,11 @@
                 artboard.style.minHeight = '0';
                 
                 updateZoomDisplay();
+                
+                // Reset dan Simpan State Awal
+                undoStack = [];
+                redoStack = [];
+                saveState();
             };
             artboard.appendChild(img);
         }
