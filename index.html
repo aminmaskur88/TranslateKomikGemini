@@ -997,7 +997,7 @@
                     // Hanya scaling jika user sudah melakukan resize manual 
                     // (ditandai dengan adanya style width/height inline dari browser)
                     if (textDiv.style.width) {
-                        const newFontSize = Math.max(10, height * 0.4);
+                        const newFontSize = Math.max(6, height * 0.4);
                         // Hindari update jika nilainya sama (mencegah loop tak berujung)
                         const currentSize = parseFloat(textDiv.style.fontSize);
                         if (Math.abs(currentSize - newFontSize) > 1) {
