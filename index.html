@@ -52,11 +52,11 @@
         .canvas-toolbar { height: 42px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 12px; }
         .canvas-wrapper { 
             flex: 1; 
-            overflow: hidden; /* Menghilangkan scrolling sama sekali */
+            overflow: auto; /* Mengizinkan scrolling */
             display: flex; 
-            justify-content: center; 
-            align-items: center; /* Memastikan gambar pas di tengah */
-            padding: 10px; /* Mengurangi jarak tepi secara drastis */
+            justify-content: flex-start; /* Ubah ke flex-start agar tidak terpotong saat di-zoom */
+            align-items: flex-start; 
+            padding: 10px; 
             background-color: var(--bg-workspace);
         }
         .artboard {
@@ -64,19 +64,17 @@
             box-shadow: var(--shadow-canvas);
             border: 1px solid var(--border-color);
             position: relative;
-            display: inline-flex; /* Membuat bingkai putih menempel ketat (shrink-wrap) */
+            display: inline-flex;
             justify-content: center;
             align-items: center;
-            max-width: 100%;
-            max-height: 100%; /* Bingkai tidak akan melebihi area layar yang tersisa */
-            /* Ukuran awal untuk placeholder */
+            margin: auto; /* Untuk memastikan letak di tengah saat lebih kecil dari wrapper */
+            /* max-width/max-height tidak di-set 100% secara default karena kita atur via JS */
             min-width: 300px;
             min-height: 400px;
         }
         .artboard img { 
             display: block;
-            max-width: 100%; 
-            max-height: 100%; /* Gambar mengecil mengikuti bingkai maksimal */
+            /* Hapus max-width dan max-height 100% agar tidak responsif mengkerut secara otomatis */
             width: auto;
             height: auto;
         }
@@ -243,7 +241,7 @@
                 padding: 5px; 
             }
             .divider-horizontal { display: none; } 
-            .artboard { width: 90%; height: auto; aspect-ratio: 1/1.4; }
+            .artboard { margin: auto; }
         }
     </style>
 </head>
@@ -672,6 +670,7 @@
 
         // Fungsi Umum untuk Menampilkan Gambar di Kertas/Artboard
         let currentZoom = 100;
+        let lastZoom = 100;
         let baseImgWidth = 0;
         let baseImgHeight = 0;
         
@@ -682,48 +681,40 @@
             
             if (!img) return;
 
-            if (currentZoom === 100) {
-                // Reset ke mode fit-to-screen (Pas Layar)
-                wrapper.style.overflow = 'hidden';
-                wrapper.style.alignItems = 'center';
-                wrapper.style.justifyContent = 'center';
-                
-                img.style.maxWidth = '100%';
-                img.style.maxHeight = '100%';
-                img.style.width = 'auto';
-                img.style.height = 'auto';
-                
-                artboard.style.maxWidth = '100%';
-                artboard.style.maxHeight = '100%';
-            } else {
-                // Mode Zoom (Bisa Scroll)
-                if (img.style.maxWidth === '100%') {
-                    // Catat ukuran aktual gambar saat 100% (Fit) agar pembesarannya presisi dan proporsional
-                    baseImgWidth = img.clientWidth;
-                    baseImgHeight = img.clientHeight;
-                }
+            const ratio = currentZoom / lastZoom;
+            lastZoom = currentZoom;
 
-                wrapper.style.overflow = 'auto';
-                
-                // Ubah origin (pusat) penempatan ke Kiri Atas agar tidak terpotong (clipped) karena centering dari CSS Flexbox
-                wrapper.style.alignItems = 'flex-start';
-                wrapper.style.justifyContent = 'flex-start';
-                
-                // Lepas batasan batas layar maksimal
-                img.style.maxWidth = 'none';
-                img.style.maxHeight = 'none';
-                artboard.style.maxWidth = 'none';
-                artboard.style.maxHeight = 'none';
-                
-                // Terapkan ukuran baru (Skala secara akurat)
-                const newWidth = baseImgWidth * (currentZoom / 100);
-                const newHeight = baseImgHeight * (currentZoom / 100);
-                
-                img.style.width = newWidth + 'px';
-                img.style.height = newHeight + 'px';
-                artboard.style.minWidth = newWidth + 'px';
-                artboard.style.minHeight = newHeight + 'px';
-            }
+            // Update ukuran dan posisi semua balon teks yang ada
+            document.querySelectorAll('.comic-text').forEach(el => {
+                const left = parseFloat(el.style.left || 0);
+                const top = parseFloat(el.style.top || 0);
+                const width = parseFloat(el.style.width || 0);
+                const height = parseFloat(el.style.height || 0);
+                const fontSize = parseFloat(el.style.fontSize || 16);
+
+                if (left) el.style.left = (left * ratio) + 'px';
+                if (top) el.style.top = (top * ratio) + 'px';
+                if (width) el.style.width = (width * ratio) + 'px';
+                if (height) el.style.height = (height * ratio) + 'px';
+                if (fontSize) el.style.fontSize = (fontSize * ratio) + 'px';
+            });
+
+            // Terapkan ukuran baru ke Artboard dan Gambar secara eksplisit
+            const newWidth = baseImgWidth * (currentZoom / 100);
+            const newHeight = baseImgHeight * (currentZoom / 100);
+            
+            // Pastikan gambar dan artboard ukurannya sama persis (fixed)
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            img.style.width = newWidth + 'px';
+            img.style.height = newHeight + 'px';
+            
+            artboard.style.maxWidth = 'none';
+            artboard.style.maxHeight = 'none';
+            artboard.style.minWidth = newWidth + 'px';
+            artboard.style.minHeight = newHeight + 'px';
+            artboard.style.width = newWidth + 'px';
+            artboard.style.height = newHeight + 'px';
         }
 
         document.getElementById('btnZoomIn').addEventListener('click', () => {
@@ -968,10 +959,10 @@
                 const response = await fetch('/translate_texts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.loads(JSON.stringify({ 
+                    body: JSON.stringify({ 
                         texts: textArray,
                         target_lang: targetLang
-                    }))
+                    })
                 });
                 
                 const data = await response.json();
@@ -1265,12 +1256,27 @@
             img.onload = () => {
                 canvasResolution.innerText = `Resolusi: ${img.naturalWidth} x ${img.naturalHeight} px`;
                 
-                // Cukup reset batas minimal saja, biarkan CSS flex yang membungkus gambar secara otomatis
+                // Simpan ukuran asli gambar sebagai patokan zoom (100%)
+                baseImgWidth = img.naturalWidth;
+                baseImgHeight = img.naturalHeight;
+                
+                // Hitung zoom yang pas agar gambar awal terlihat penuh tanpa scroll (Fit to screen)
+                const wrapper = document.querySelector('.canvas-wrapper');
+                // padding dikurangi dari lebar dan tinggi wrapper
+                const fitScaleX = (wrapper.clientWidth - 20) / baseImgWidth;
+                const fitScaleY = (wrapper.clientHeight - 20) / baseImgHeight;
+                
+                // Jangan zoom lebih dari 100% jika gambar aslinya kecil
+                const initialFitScale = Math.min(fitScaleX, fitScaleY, 1);
+                
+                // Terapkan persentase zoom (dibulatkan ke bawah agar rapi)
+                currentZoom = Math.floor(initialFitScale * 100);
+                lastZoom = currentZoom;
+                
+                // Bersihkan batas awal
                 artboard.style.minWidth = '0';
                 artboard.style.minHeight = '0';
                 
-                // Kembalikan ke 100% (Fit) setiap ganti gambar
-                currentZoom = 100;
                 updateZoomDisplay();
             };
             artboard.appendChild(img);
