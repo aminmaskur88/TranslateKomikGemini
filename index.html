@@ -25,7 +25,9 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-app);
-            color: var(--text-main); height: 100vh; overflow: hidden;
+            color: var(--text-main); 
+            height: 100vh; height: 100dvh; /* 100dvh mencegah UI terpotong navigasi browser HP */
+            overflow: hidden;
             display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 280px 1fr;
             grid-template-areas: "header header" "sidebar workspace";
             transition: background-color 0.3s, color 0.3s;
@@ -216,6 +218,7 @@
             body { 
                 height: auto; 
                 min-height: 100vh;
+                min-height: 100dvh; /* Support browser HP modern agar tidak terpotong URL bar */
                 overflow-y: auto; /* Mengizinkan seluruh layar di-scroll ke bawah */
                 grid-template-rows: 52px auto auto; /* Menyesuaikan dengan tinggi kontennya */
                 grid-template-columns: 1fr; 
@@ -231,6 +234,7 @@
                 flex-wrap: wrap; /* Tombol jatuh ke baris baru */
                 overflow: visible; 
                 padding: 10px;
+                padding-bottom: 60px; /* Jarak ekstra di bawah agar tidak tertutup sistem navigasi HP */
                 gap: 10px;
                 justify-content: center;
                 align-items: flex-start;
@@ -727,6 +731,63 @@
             if (!artboard.querySelector('img')) return;
             currentZoom = Math.max(25, currentZoom - 25); // Minimal zoom 25%
             updateZoomDisplay();
+        });
+
+        // ==== FITUR ZOOM MOUSE & PINCH (TOUCH) ====
+        const canvasWrapper = document.querySelector('.canvas-wrapper');
+        
+        // Mouse Wheel Zoom (Ctrl + Scroll)
+        canvasWrapper.addEventListener('wheel', (e) => {
+            if (!artboard.querySelector('img')) return;
+            
+            // Periksa jika tombol Ctrl ditekan (standar browser untuk zoom canvas/maps)
+            // Atau jika menggunakan touchpad Mac (biasanya memicu ctrlKey saat pinch gesture)
+            if (e.ctrlKey) {
+                e.preventDefault(); // Mencegah zoom halaman utama
+                if (e.deltaY < 0) {
+                    currentZoom += 15; // Zoom In
+                } else {
+                    currentZoom = Math.max(25, currentZoom - 15); // Zoom Out
+                }
+                updateZoomDisplay();
+            }
+        }, { passive: false });
+
+        // Pinch Zoom (Mobile Touch)
+        let initialDistance = null;
+        let initialZoom = null;
+
+        canvasWrapper.addEventListener('touchstart', (e) => {
+            // Aktifkan jika user memakai 2 jari
+            if (e.touches.length === 2 && artboard.querySelector('img')) {
+                e.preventDefault(); // Mencegah scrolling native
+                initialDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                initialZoom = currentZoom;
+            }
+        }, { passive: false });
+
+        canvasWrapper.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance !== null && artboard.querySelector('img')) {
+                e.preventDefault();
+                const currentDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                
+                // Menghitung rasio jarak awal dan sekarang (cubitan)
+                const scaleDiff = (currentDistance / initialDistance);
+                currentZoom = Math.max(25, Math.floor(initialZoom * scaleDiff));
+                updateZoomDisplay();
+            }
+        }, { passive: false });
+
+        canvasWrapper.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialDistance = null; // Reset saat salah satu jari diangkat
+            }
         });
 
         // ==== FITUR EXPORT (KIRIM DATA KE BACKEND HD) ====
