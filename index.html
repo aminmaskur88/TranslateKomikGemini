@@ -89,7 +89,7 @@
         #toastContainer {
             position: fixed;
             top: 20px;
-            right: 20px;
+            left: 20px;
             z-index: 10000;
             display: flex;
             flex-direction: column;
@@ -110,7 +110,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            transform: translateX(120%);
+            transform: translateX(-120%);
             transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             pointer-events: auto;
             border: 1px solid var(--border-color);
@@ -267,7 +267,13 @@
 
     <!-- HEADER -->
     <header class="header-area">
-        <div class="logo"><span class="material-icons-round">edit_document</span> <span>TranslateKomik</span></div>
+        <div class="logo">
+            <div id="dailyProgress" title="Gambar selesai hari ini" style="background: var(--item-active); color: var(--accent); font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--accent); font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                <span class="material-icons-round" style="font-size: 12px;">task_alt</span>
+                <span id="todayCount">0</span>
+            </div>
+            <span>TranslateKomik</span>
+        </div>
         <div class="header-actions">
             <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen"><span class="material-icons-round" id="iconFullscreen">fullscreen</span></button>
             <!-- Tombol Export dipindah ke sidebar -->
@@ -295,6 +301,7 @@
                 </button>
             </div>
             <button id="btnExport" class="btn-primary" style="width: 100%; margin-top: 4px;"><span class="material-icons-round">download</span> Export (Simpan HD)</button>
+            <button id="btnSkipText" class="tool-btn" style="width: 100%; margin-top: 4px; flex-direction: row; justify-content: center; padding: 8px 16px; border-color: #10b981; color: #10b981; background-color: #ecfdf5;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
             <!-- Progress indicator -->
             <div id="uploadStatus" style="font-size: 11px; color: var(--accent); display: none; text-align: center; margin-top: 5px;">Mengupload...</div>
         </div>
@@ -329,14 +336,12 @@
             <div id="detectedLangBox" style="display: none; font-size: 11px; color: var(--accent); text-align: center; margin-top: 5px; font-weight: bold;">Terdeteksi: <span id="detectedLangText"></span></div>
             <button id="btnTranslate" class="btn-primary" style="width: 100%; margin-top: 8px;"><span class="material-icons-round">translate</span> Terjemahkan (Gambar)</button>
             <button id="btnRetranslate" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px;"><span class="material-icons-round">g_translate</span> Ganti Bahasa (Teks)</button>
-            <button id="btnSkipText" class="tool-btn" style="width: 100%; margin-top: 8px; flex-direction: row; justify-content: center; padding: 8px 16px; border-color: #10b981; color: #10b981; background-color: #ecfdf5;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
         </div>
         
         <div class="divider-horizontal"></div>
         <div class="sidebar-section">
             <h3 class="section-title">Alat Edit</h3>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="btnCleanBalloon" class="tool-btn" style="width: 100%; flex-direction: row; justify-content: start; padding-left: 15px;"><span class="material-icons-round">cleaning_services</span> <span>Hapus Balon</span></button>
                 <button id="btnAddText" class="tool-btn" style="width: 100%; flex-direction: row; justify-content: start; padding-left: 15px;"><span class="material-icons-round">title</span> <span>Tambah Teks</span></button>
             </div>
         </div>
@@ -351,7 +356,6 @@
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div id="exportHistoryBox" style="display: none; font-size: 11px; color: var(--text-muted); align-items: center; gap: 6px;">
-                    Telah di-export ke:
                     <div id="exportHistoryList" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
                 </div>
                 <div style="height: 16px; width: 1px; background-color: var(--border-color);"></div> <!-- Pemisah vertikal -->
@@ -421,6 +425,11 @@
         function showToast(message, type = 'info', duration = 4000, action = null) {
             const container = document.getElementById('toastContainer');
             if (!container) return;
+
+            // Batasi maksimal 3 toast, hapus yang tertua jika sudah mencapai limit
+            while (container.children.length >= 3) {
+                container.firstElementChild.remove();
+            }
 
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1195,6 +1204,8 @@
 
                 textDiv.style.left = x + "px";
                 textDiv.style.top = y + "px";
+                
+                updateFloatingDeleteBtn();
             };
 
             const moveEnd = () => {
@@ -1206,6 +1217,8 @@
                 if (document.activeElement !== textDiv) {
                     updateDominantColor(textDiv);
                 }
+                
+                updateFloatingDeleteBtn();
             };
 
             // Event Desktop
@@ -1265,20 +1278,65 @@
                 
                 // Set z-index kotak yang diklik menjadi paling tinggi
                 textDiv.style.zIndex = window.highestZIndex;
+                
+                updateFloatingDeleteBtn();
             };
             textDiv.addEventListener('focus', setActive);
             textDiv.addEventListener('mousedown', setActive);
             textDiv.addEventListener('touchstart', setActive, {passive: true});
         }
 
-        // ==== FITUR HAPUS TEKS / BALON AKTIF ====
-        document.getElementById('btnCleanBalloon').addEventListener('click', () => {
+        // ==== FITUR HAPUS TEKS / BALON AKTIF (TOMBOL MENGAMBANG) ====
+        function updateFloatingDeleteBtn() {
+            let btn = document.getElementById('floatingDeleteBtn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = 'floatingDeleteBtn';
+                btn.title = "Hapus Balon";
+                btn.innerHTML = '<span class="material-icons-round" style="font-size: 14px;">close</span>';
+                btn.style.cssText = "display: none; position: absolute; z-index: 10000; background: #ef4444; color: white; border: 2px solid white; border-radius: 50%; width: 24px; height: 24px; padding: 0; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transform: translate(-50%, -50%);";
+                
+                const deleteAction = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (window.activeTextBox && window.activeTextBox.parentNode) {
+                        window.activeTextBox.remove();
+                        window.activeTextBox = null;
+                        btn.style.display = 'none';
+                    }
+                };
+                
+                btn.addEventListener('mousedown', deleteAction);
+                btn.addEventListener('touchstart', deleteAction, {passive: false});
+                
+                artboard.appendChild(btn);
+            }
+            
             if (window.activeTextBox && window.activeTextBox.parentNode) {
-                // Jika ada kotak yang sedang aktif (terakhir diklik/fokus), hapus kotak tersebut
-                window.activeTextBox.remove();
+                btn.style.display = 'flex';
+                btn.style.left = window.activeTextBox.style.left;
+                btn.style.top = window.activeTextBox.style.top;
+                
+                if (!window.highestZIndex) window.highestZIndex = 50;
+                btn.style.zIndex = window.highestZIndex + 1;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+        
+        // Sembunyikan tombol delete jika klik di luar kotak teks
+        artboard.addEventListener('mousedown', (e) => {
+            if (e.target === artboard || e.target === artboard.querySelector('img')) {
                 window.activeTextBox = null;
+                updateFloatingDeleteBtn();
             }
         });
+        artboard.addEventListener('touchstart', (e) => {
+            if (e.target === artboard || e.target === artboard.querySelector('img')) {
+                window.activeTextBox = null;
+                updateFloatingDeleteBtn();
+            }
+        }, {passive: true});
 
         // ==== FITUR TAMBAH TEKS (MANUAL) ====
         document.getElementById('btnAddText').addEventListener('click', () => {
@@ -1317,14 +1375,32 @@
             }
         }
 
+        async function updateDailyStats() {
+            try {
+                const response = await fetch('/get_stats');
+                const data = await response.json();
+                document.getElementById('todayCount').innerText = data.today_count || 0;
+            } catch(e) {
+                console.error("Gagal load stats", e);
+            }
+        }
+
         async function updateExportHistoryDisplay() {
             await fetchHistory(); // Ambil data history permanen dari server
             const historyBox = document.getElementById('exportHistoryBox');
             const historyList = document.getElementById('exportHistoryList');
             if (!historyBox || !historyList) return;
             
-            // Perhatikan penggunaan `.length` karena sekarang datanya adalah Array dari JSON, bukan Set.
-            if (!window.currentFileName || !window.exportHistory || !window.exportHistory[window.currentFileName] || window.exportHistory[window.currentFileName].length === 0) {
+            const historyData = window.exportHistory[window.currentFileName];
+            
+            if (!window.currentFileName || !historyData) {
+                historyBox.style.display = 'none';
+                return;
+            }
+            
+            const langList = Array.isArray(historyData) ? historyData : Object.keys(historyData);
+            
+            if (langList.length === 0) {
                 historyBox.style.display = 'none';
                 return;
             }
@@ -1332,7 +1408,7 @@
             historyBox.style.display = 'flex';
             historyList.innerHTML = '';
             
-            window.exportHistory[window.currentFileName].forEach(lang => {
+            langList.forEach(lang => {
                 const badge = document.createElement('span');
                 badge.style.backgroundColor = 'var(--item-active)';
                 badge.style.color = 'var(--accent)';
@@ -1341,7 +1417,48 @@
                 badge.style.borderRadius = '12px';
                 badge.style.fontSize = '10px';
                 badge.style.fontWeight = 'bold';
+                badge.style.cursor = 'pointer';
                 badge.innerText = lang;
+                
+                badge.onclick = () => {
+                    const img = artboard.querySelector('img');
+                    if (!img) return;
+                    
+                    // Jika saat ini sudah menampilkan versi bahasa ini, balik ke original
+                    if (badge.dataset.active === "true") {
+                        showImageOnCanvas('/bahan/' + encodeURIComponent(window.currentFileName), window.currentFileName);
+                        return;
+                    }
+                    
+                    // Reset semua badge lain
+                    historyList.querySelectorAll('span').forEach(s => {
+                        s.style.backgroundColor = 'var(--item-active)';
+                        s.style.color = 'var(--accent)';
+                        delete s.dataset.active;
+                    });
+                    
+                    // Aktifkan badge ini
+                    badge.style.backgroundColor = 'var(--accent)';
+                    badge.style.color = 'white';
+                    badge.dataset.active = "true";
+                    
+                    // Tentukan path hasil (Menyesuaikan logika baru server.py)
+                    const subDir = window.currentFileName.includes('/') ? window.currentFileName.substring(0, window.currentFileName.lastIndexOf('/')) : '';
+                    
+                    // Gunakan nama file asli jika format riwayat masih lama (array), 
+                    // atau gunakan nama file baru dari server (dict)
+                    const outputName = Array.isArray(historyData) ? window.currentFileName.split('/').pop() : historyData[lang];
+                    
+                    const resultPath = `/hasil/${lang}/${subDir ? subDir + '/' : ''}${outputName}`;
+                    
+                    // Ganti sumber gambar
+                    img.src = resultPath;
+                    
+                    // Sembunyikan semua elemen edit (bubble, dsb) agar tidak numpuk di gambar hasil
+                    artboard.querySelectorAll('.comic-text, #floatingDeleteBtn').forEach(el => el.style.display = 'none');
+                    showToast(`Menampilkan hasil: ${lang}`, 'info');
+                };
+                
                 historyList.appendChild(badge);
             });
         }
@@ -1355,6 +1472,7 @@
             
             // Panggil riwayat export untuk file ini (tanpa perlu buat Set kosong)
             updateExportHistoryDisplay();
+            updateDailyStats();
             
             const img = new Image();
             img.crossOrigin = "Anonymous"; // Diperlukan agar script bisa membaca warna pixel gambar

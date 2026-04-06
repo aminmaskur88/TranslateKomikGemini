@@ -43,6 +43,40 @@ except OSError:
     HISTORY_FILE = os.path.join(UPLOAD_DIR, 'history.json')
     print(f"Warning: Tidak dapat menulis di '{READ_DIR}'. History disimpan di '{HISTORY_FILE}'.")
 
+# Lokasi stats global
+STATS_FILE = 'bahan/stats.json'
+
+def track_progress(filename):
+    import datetime
+    today = datetime.date.today().isoformat()
+    stats = {}
+    if os.path.exists(STATS_FILE):
+        try:
+            with open(STATS_FILE, 'r', encoding='utf-8') as f:
+                stats = json.load(f)
+        except: pass
+    
+    if today not in stats:
+        stats[today] = []
+    
+    if filename not in stats[today]:
+        stats[today].append(filename)
+        try:
+            with open(STATS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(stats, f, ensure_ascii=False, indent=4)
+        except: pass
+
+def get_today_count():
+    import datetime
+    today = datetime.date.today().isoformat()
+    if os.path.exists(STATS_FILE):
+        try:
+            with open(STATS_FILE, 'r', encoding='utf-8') as f:
+                stats = json.load(f)
+                return len(stats.get(today, []))
+        except: pass
+    return 0
+
 def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
@@ -403,13 +437,20 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 output_path = os.path.join(lang_dir, output_filename)
                 img.save(output_path, quality=95)
                 
-                # Simpan Riwayat Export ke File history.json
+                # Simpan Riwayat Export ke File history.json (Format Baru: {ori: {lang: output_name}})
                 history = load_history()
                 if rel_filename not in history:
-                    history[rel_filename] = []
-                if safe_lang not in history[rel_filename]:
-                    history[rel_filename].append(safe_lang)
+                    history[rel_filename] = {}
+                
+                # Migrasi jika masih format lama (List)
+                if isinstance(history[rel_filename], list):
+                    history[rel_filename] = {l: os.path.basename(rel_filename) for l in history[rel_filename]}
+                
+                history[rel_filename][safe_lang] = output_filename
                 save_history(history)
+                
+                # Catat progres harian
+                track_progress(rel_filename)
                 
                 # Respon Sukses
                 self.send_response(200)
@@ -455,7 +496,11 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
 
                 history = load_history()
                 if rel_filename not in history:
-                    history[rel_filename] = []
+                    history[rel_filename] = {}
+                
+                # Migrasi jika format lama
+                if isinstance(history[rel_filename], list):
+                    history[rel_filename] = {l: os.path.basename(rel_filename) for l in history[rel_filename]}
 
                 sub_dir = os.path.dirname(rel_filename)
                 base_name = os.path.basename(rel_filename)
@@ -467,10 +512,11 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                     
                     shutil.copy2(source_path, output_path)
                     
-                    if lang not in history[rel_filename]:
-                        history[rel_filename].append(lang)
+                    # Simpan nama file output (di sini sama dengan base_name)
+                    history[rel_filename][lang] = base_name
                         
                 save_history(history)
+                track_progress(rel_filename)
                 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
@@ -521,10 +567,14 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                             # Dapatkan path relatif dari base_path
                             rel_path = os.path.relpath(os.path.join(root, f), base_path)
                             if rel_path not in seen:
+                                langs = history.get(rel_path, [])
+                                if isinstance(langs, dict):
+                                    langs = list(langs.keys())
+                                    
                                 files_data.append({
                                     "name": rel_path,
-                                    "translated": rel_path in history and len(history[rel_path]) > 0,
-                                    "languages": history.get(rel_path, [])
+                                    "translated": len(langs) > 0,
+                                    "languages": langs
                                 })
                                 seen.add(rel_path)
             
@@ -539,6 +589,14 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(files_data).encode('utf-8'))
+            return
+
+        elif self.path == '/get_stats':
+            count = get_today_count()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'today_count': count}).encode('utf-8'))
             return
 
         elif self.path == '/get_history':
