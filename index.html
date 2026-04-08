@@ -444,6 +444,8 @@
         // Paksa bersihkan data lama yang mungkin nyangkut di memori browser
         localStorage.clear(); 
         window.exportHistory = {};
+        window.cachedTranslations = null;
+        window.cachedTitles = null;
         
         // ==== SISTEM UNDO / REDO ====
         let undoStack = [];
@@ -465,7 +467,8 @@
                     fontSize: el.style.fontSize,
                     zIndex: el.style.zIndex,
                     backgroundColor: el.style.backgroundColor,
-                    color: el.style.color
+                    color: el.style.color,
+                    transIdx: el.getAttribute('data-trans-idx')
                 }))
             };
             
@@ -496,6 +499,9 @@
                 textDiv.className = 'comic-text';
                 textDiv.contentEditable = "true";
                 textDiv.innerText = data.text;
+                if (data.transIdx !== null && data.transIdx !== undefined) {
+                    textDiv.setAttribute('data-trans-idx', data.transIdx);
+                }
                 textDiv.style.left = data.left;
                 textDiv.style.top = data.top;
                 textDiv.style.width = data.width;
@@ -1199,6 +1205,79 @@
         });
 
         // ==== FITUR TERJEMAHAN OTOMATIS (API GEMINI) ====
+        function applyTranslationsFromCache(forceRebuild = false) {
+            let targetDropdown = document.getElementById('langTarget');
+            let targetValue = targetDropdown.value;
+            let targetLang = targetValue;
+            
+            if (targetValue === 'Manual') {
+                targetLang = document.getElementById('manualTargetLang').value.trim();
+            }
+
+            if (!window.cachedTranslations) return false;
+
+            let translations;
+            let title = "";
+            const titles = window.cachedTitles || {};
+
+            // Fallback jika API Gemini ngawur dan mengembalikan array biasa (format lama)
+            if (Array.isArray(window.cachedTranslations)) {
+                translations = window.cachedTranslations;
+                title = typeof titles === 'string' ? titles : (titles[targetLang] || "");
+            } else {
+                // Cari key bahasa (case-insensitive) agar lebih aman
+                const langKey = Object.keys(window.cachedTranslations).find(k => k.toLowerCase() === targetLang.toLowerCase());
+                if (langKey) {
+                    translations = window.cachedTranslations[langKey];
+                    title = titles[langKey] || "";
+                } else {
+                    return false;
+                }
+            }
+
+            if (!Array.isArray(translations) || translations.length === 0) return false;
+
+            if (title) {
+                document.getElementById('comicTitle').value = title;
+            }
+
+            const existingElements = document.querySelectorAll('.comic-text');
+            const hasGeminiBubbles = Array.from(existingElements).some(el => el.hasAttribute('data-trans-idx'));
+            
+            if (forceRebuild || (!hasGeminiBubbles && existingElements.length === 0)) {
+                if (forceRebuild) {
+                    existingElements.forEach(el => el.remove());
+                }
+                
+                translations.forEach((text, i) => {
+                    const textDiv = document.createElement('div');
+                    textDiv.className = 'comic-text';
+                    textDiv.contentEditable = "true";
+                    textDiv.innerText = text;
+                    textDiv.setAttribute('data-trans-idx', i);
+                    textDiv.style.width = "200px";
+                    textDiv.style.height = "100px";
+                    textDiv.style.fontSize = "16px";
+                    textDiv.style.top = (50 + (i * 110)) + "px";
+                    textDiv.style.left = "50px";
+
+                    attachTextEvents(textDiv);
+                    artboard.appendChild(textDiv);
+                    updateDominantColor(textDiv);
+                });
+            } else {
+                translations.forEach((text, i) => {
+                    const el = document.querySelector(`.comic-text[data-trans-idx="${i}"]`);
+                    if (el) {
+                        el.innerText = text;
+                        updateDominantColor(el);
+                    }
+                });
+            }
+            saveState();
+            return true;
+        }
+
         document.getElementById('langTarget').addEventListener('change', (e) => {
             const manualRow = document.getElementById('manualTargetRow');
             if (e.target.value === 'Manual') {
@@ -1206,6 +1285,17 @@
             } else {
                 manualRow.style.display = 'none';
             }
+
+            // INSTANT SWITCH: Jika ada cache, langsung ganti tanpa panggil API
+            if (window.cachedTranslations) {
+                if (applyTranslationsFromCache()) {
+                    showToast(`Bahasa diganti ke ${e.target.value} (Instant dari Cache)`, "success", 2000);
+                }
+            }
+        });
+
+        document.getElementById('manualTargetLang').addEventListener('blur', () => {
+            if (window.cachedTranslations) applyTranslationsFromCache();
         });
 
         document.getElementById('btnTranslate').addEventListener('click', async () => {
@@ -1247,39 +1337,23 @@
                 
                 if (data.error) {
                     showToast("API Error: " + data.error, "error");
-                } else if (data.translations && data.translations.length > 0) {
-                    // Set judul otomatis dari Gemini jika ada
-                    if (data.title) {
-                        document.getElementById('comicTitle').value = data.title;
+                } else if (data.translations) {
+                    // Cek jika format lama (list biasa) vs format baru (dict)
+                    if (Array.isArray(data.translations)) {
+                        window.cachedTranslations = {};
+                        window.cachedTranslations[targetLang] = data.translations;
+                        window.cachedTitles = {};
+                        window.cachedTitles[targetLang] = data.title || "";
+                    } else {
+                        window.cachedTranslations = data.translations;
+                        window.cachedTitles = data.titles || {};
                     }
                     
-                    // Berhasil mendapatkan terjemahan, buat kotak teks untuk masing-masing
-                    data.translations.forEach((text, i) => {
-                        const textDiv = document.createElement('div');
-                        textDiv.className = 'comic-text';
-                        textDiv.contentEditable = "true";
-                        textDiv.innerText = text;
-                        
-                        // Beri ukuran lebar, tinggi, dan font awal yang pasti agar semua sama rata 
-                        // dan tidak menyebabkan lonjakan tata letak (layout shift).
-                        textDiv.style.width = "200px";
-                        textDiv.style.height = "100px";
-                        textDiv.style.fontSize = "16px";
-                        
-                        // Jejerkan ke bawah rapi tanpa numpuk
-                        textDiv.style.top = (50 + (i * 110)) + "px";
-                        textDiv.style.left = "50px";
+                    // Terapkan bahasa yang sedang dipilih
+                    if (!applyTranslationsFromCache(true)) {
+                         showToast("Gagal menerapkan terjemahan bahasa terpilih.", "error");
+                    }
 
-                        // Pasang semua event handler drag & drop sama seperti tambah manual
-                        attachTextEvents(textDiv);
-                        artboard.appendChild(textDiv);
-                        
-                        // Warnai otomatis
-                        updateDominantColor(textDiv);
-                    });
-                    
-                    saveState(); // Simpan riwayat setelah terjemahan selesai
-                    
                     // Tampilkan bahasa asal yang terdeteksi jika pakai Auto
                     const detectedBox = document.getElementById('detectedLangBox');
                     if (sourceLang === 'Auto' && data.detected_language) {
@@ -1289,7 +1363,7 @@
                         detectedBox.style.display = 'none';
                     }
 
-                    showToast(`Berhasil menerjemahkan ${data.translations.length} teks!`, "success");
+                    showToast("Berhasil memproses terjemahan beberapa bahasa sekaligus!", "success");
                 } else {
                     showToast("Tidak ada teks yang berhasil dideteksi.", "info");
                 }
@@ -1756,6 +1830,10 @@
             
             // Simpan nama file asli ke global variable untuk kebutuhan fitur Export
             window.currentFileName = fileName;
+            
+            // Reset cache saat buka gambar baru
+            window.cachedTranslations = null;
+            window.cachedTitles = null;
             
             // Panggil riwayat export untuk file ini (tanpa perlu buat Set kosong)
             updateExportHistoryDisplay();

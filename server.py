@@ -281,8 +281,42 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 if not os.path.exists(source_path):
                     raise FileNotFoundError(f"File {filename} tidak ditemukan di bahan maupun {READ_DIR}.")
 
-                # Panggil Gemini API
+                # Panggil Gemini API (Hanya 1 bahasa utama agar Vision tidak berat)
                 result = call_gemini_vision(source_path, target_lang, source_lang)
+                
+                # Jika sukses, lanjut panggil Gemini Text untuk bahasa lainnya
+                if "error" not in result and "translations" in result:
+                    main_translations = result["translations"]
+                    main_title = result.get("title", "")
+                    
+                    multi_result = {
+                        "translations": {target_lang: main_translations},
+                        "titles": {target_lang: main_title},
+                        "detected_language": result.get("detected_language", "Auto")
+                    }
+                    
+                    langs = ["Indonesian", "English", "Tagalog"]
+                    extra_langs = [l for l in langs if l.lower() != target_lang.lower()]
+                    
+                    if extra_langs and main_translations:
+                        langs_str = ", ".join(extra_langs)
+                        prompt = f"Translate the following comic text bubbles and title into ALL of these languages: {langs_str}.\n\nOriginal Title: {main_title}\nTexts:\n{json.dumps(main_translations, ensure_ascii=False)}\n\nReturn ONLY JSON format EXACTLY like this: {{\"translations\": {{\"English\": [\"text1\", \"text2\"], \"Tagalog\": [\"text1\", \"text2\"]}}, \"titles\": {{\"English\": \"Title\", \"Tagalog\": \"Title\"}}}}"
+                        
+                        payload = {
+                            "contents": [{"parts": [{"text": prompt}]}],
+                            "generationConfig": {"response_mime_type": "application/json"}
+                        }
+                        
+                        print(f"DEBUG: Memanggil Gemini Text untuk bahasa tambahan: {langs_str}")
+                        extra_result = call_gemini_api(payload)
+                        if "error" not in extra_result:
+                            # Gabungkan
+                            if "translations" in extra_result and isinstance(extra_result["translations"], dict):
+                                multi_result["translations"].update(extra_result["translations"])
+                            if "titles" in extra_result and isinstance(extra_result["titles"], dict):
+                                multi_result["titles"].update(extra_result["titles"])
+                    
+                    result = multi_result
                 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
