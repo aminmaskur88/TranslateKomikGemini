@@ -130,7 +130,11 @@ class ApiKeyManager:
 key_manager = ApiKeyManager(KEY_FILE)
 
 def call_gemini_api(payload):
-    models = ["gemini-2.5-flash"]
+    models = [
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash"
+    ]
 
     for _ in range(len(key_manager.keys) or 1):
         api_key = key_manager.get_current_key()
@@ -141,6 +145,7 @@ def call_gemini_api(payload):
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             try:
                 print(f"DEBUG: Mengirim ke {model}...")
+                
                 res = requests.post(url, json=payload, timeout=60)
 
                 if res.status_code == 200:
@@ -154,13 +159,18 @@ def call_gemini_api(payload):
                     text = content[0].get("text", "")
                     clean = text.replace("```json", "").replace("```", "").strip()
 
+                    # pastikan JSON valid
+                    if not clean.startswith("{"):
+                        return {"translations": [clean]}
+
                     try:
                         return json.loads(clean)
                     except:
                         return {"translations": [clean]}
 
-                if res.status_code == 429:
-                    print(f"⚠️ Quota habis: {model}, mencoba fallback...")
+                # 🔥 fallback semua error umum
+                if res.status_code in [429, 500, 503]:
+                    print(f"⚠️ Error {res.status_code}: {model}, mencoba fallback...")
                     continue
 
                 print(f"❌ Gemini error {res.status_code}: {res.text}")
@@ -183,7 +193,7 @@ def call_gemini_vision(image_path, target_lang="Indonesian", source_lang="Auto")
         return {"error": f"Gagal membaca gambar: {e}"}
         
     source_instruction = f"The source text is in {source_lang}." if source_lang != "Auto" else "Auto-detect the source language of the text."
-    prompt = f"Extract all text from this comic page. {source_instruction} Translate it to {target_lang}. IMPORTANT: Maintain the original tone and context. Adapt the language, idioms, and expressions so they sound completely natural and localized for native speakers of {target_lang}. Based on the context and translated text, suggest a short, catchy, and highly relevant title for this comic page in {target_lang}. Return JSON: {{'translations': ['text1', 'text2'], 'detected_language': 'language name', 'title': 'Suggested Title'}}"
+    prompt = f"Extract all text from this comic page. {source_instruction} Translate it to {target_lang}. IMPORTANT: Maintain the original tone and context. Adapt the language, idioms, and expressions so they sound completely natural and localized for native speakers of {target_lang}. Based on the context and translated text, suggest a short, catchy, and highly relevant title for this comic page in {target_lang}. Return ONLY valid JSON:\n{{\"translations\": [\"text1\", \"text2\"], \"detected_language\": \"language name\", \"title\": \"Suggested Title\"}}\nDo not include markdown or backticks."
     
     payload = {
         "contents": [{
