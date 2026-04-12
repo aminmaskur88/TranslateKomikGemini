@@ -506,7 +506,7 @@
         let apiProcessCount = 0;
         let emojiTimer = null;
 
-        // ==== LOGIKA GRAVITASI (GOOGLE GRAVITY EASTER EGG) ====
+        // ==== LOGIKA GRAVITASI (GOOGLE SPACE EASTER EGG) ====
         let isGravityActive = false;
         let gravityEngine, gravityRunner;
         let elementBodies = [];
@@ -514,31 +514,19 @@
         let rapidClickCount = 0;
         let rapidClickTimer = null;
 
-        const handleOrientation = (event) => {
-            if (!isGravityActive || !gravityEngine) return;
-            const x = event.gamma / 20;
-            const y = event.beta / 20;
-            gravityEngine.world.gravity.x = x;
-            gravityEngine.world.gravity.y = y;
-        };
-
         async function activateGravity() {
             if (isGravityActive || typeof Matter === 'undefined') return;
             
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission !== 'granted') console.log("Gyro permission denied");
-                } catch (e) { console.error(e); }
-            }
-
             isGravityActive = true;
-            window.addEventListener('deviceorientation', handleOrientation);
             window.addEventListener('keydown', (e) => { if (e.key === 'Escape') deactivateGravity(); });
             
-            const { Engine, Runner, Bodies, Composite, MouseConstraint, Mouse } = Matter;
+            const { Engine, Runner, Bodies, Composite, MouseConstraint, Mouse, Body } = Matter;
             gravityEngine = Engine.create();
             gravityRunner = Runner.create();
+
+            // Matikan gravitasi sepenuhnya agar murni melayang
+            gravityEngine.world.gravity.y = 0;
+            gravityEngine.world.gravity.x = 0;
 
             document.querySelectorAll('.header-area, .sidebar-area, .workspace-area, .sidebar-section, .options-box, .tool-grid, .canvas-toolbar').forEach(el => {
                 el.dataset.origBg = el.style.background || '';
@@ -563,58 +551,42 @@
                 const rect = el.getBoundingClientRect();
                 if (rect.width === 0 || rect.height === 0) return;
 
-                // PECAH ELEMEN LEBAR (SHATTER)
                 const maxRatio = 1.5;
                 const isTooWide = rect.width > rect.height * maxRatio && rect.width > 80;
 
                 if (isTooWide) {
                     const numPieces = Math.ceil(rect.width / (rect.height * 1.2));
                     const pieceWidth = rect.width / numPieces;
-                    
                     el.style.visibility = 'hidden'; 
                     
                     for (let i = 0; i < numPieces; i++) {
                         const wrapper = document.createElement('div');
                         wrapper.className = 'gravity-clone';
                         wrapper.style.cssText = `position:fixed; width:${pieceWidth}px; height:${rect.height}px; overflow:hidden; z-index:9999; pointer-events:auto; left:0; top:0;`;
-                        
                         const clone = el.cloneNode(true);
                         const computed = window.getComputedStyle(el);
                         wrapper.style.backgroundColor = computed.backgroundColor;
                         wrapper.style.borderRadius = computed.borderRadius;
                         wrapper.style.border = computed.border;
-
                         clone.style.cssText = `position:absolute; width:${rect.width}px; height:${rect.height}px; left:${-(i * pieceWidth)}px; top:0; margin:0; transform:none; visibility:visible; border:none; background:transparent;`;
-                        
                         wrapper.appendChild(clone);
                         document.body.appendChild(wrapper);
                         gravityClones.push(wrapper);
                         
-                        const body = Bodies.rectangle(
-                            rect.left + (i * pieceWidth) + pieceWidth / 2,
-                            rect.top + rect.height / 2,
-                            pieceWidth,
-                            rect.height,
-                            { restitution: 0.4, friction: 0.2 }
-                        );
+                        const body = Bodies.rectangle(rect.left + (i * pieceWidth) + pieceWidth / 2, rect.top + rect.height / 2, pieceWidth, rect.height, { restitution: 0.8, friction: 0, frictionAir: 0.01 });
                         body.element = wrapper;
+                        
+                        // Beri kecepatan awal acak agar melayang
+                        Body.setVelocity(body, { x: (Math.random() - 0.5) * 5, y: (Math.random() - 0.5) * 5 });
                         elementBodies.push(body);
                     }
                 } else {
                     el.dataset.origStyle = el.getAttribute('style') || '';
                     el.dataset.origPos = el.style.position || '';
-                    
-                    const body = Bodies.rectangle(
-                        rect.left + rect.width / 2,
-                        rect.top + rect.height / 2,
-                        rect.width,
-                        rect.height,
-                        { restitution: 0.5, friction: 0.1, chamfer: { radius: 2 } }
-                    );
-                    
+                    const body = Bodies.rectangle(rect.left + rect.width / 2, rect.top + rect.height / 2, rect.width, rect.height, { restitution: 0.8, friction: 0, frictionAir: 0.01, chamfer: { radius: 2 } });
                     body.element = el;
+                    Body.setVelocity(body, { x: (Math.random() - 0.5) * 5, y: (Math.random() - 0.5) * 5 });
                     elementBodies.push(body);
-                    
                     el.style.position = 'fixed';
                     el.style.left = '0';
                     el.style.top = '0';
@@ -630,14 +602,10 @@
             const leftWall = Bodies.rectangle(-50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
             const rightWall = Bodies.rectangle(window.innerWidth + 50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
             const ceiling = Bodies.rectangle(window.innerWidth / 2, -50, window.innerWidth * 2, 100, { isStatic: true });
-            
             Composite.add(gravityEngine.world, [...elementBodies, ground, leftWall, rightWall, ceiling]);
 
             const mouse = Mouse.create(document.body);
-            const mouseConstraint = MouseConstraint.create(gravityEngine, {
-                mouse: mouse,
-                constraint: { stiffness: 0.2, render: { visible: false } }
-            });
+            const mouseConstraint = MouseConstraint.create(gravityEngine, { mouse: mouse, constraint: { stiffness: 0.2, render: { visible: false } } });
             Composite.add(gravityEngine.world, mouseConstraint);
 
             (function update() {
@@ -651,13 +619,12 @@
             })();
 
             Runner.run(gravityRunner, gravityEngine);
-            showToast("GRAVITASI AKTIF! Elemen pecah berkeping-keping.", "info", 5000);
+            showToast("SPACE MODE! Elemen melayang di luar angkasa.", "info", 5000);
         }
 
         function deactivateGravity() {
             if (!isGravityActive) return;
             isGravityActive = false;
-            window.removeEventListener('deviceorientation', handleOrientation);
             
             Matter.Runner.stop(gravityRunner);
             
