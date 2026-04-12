@@ -11,7 +11,7 @@
             --border-color: #d1d5db; --text-main: #1f2937; --text-muted: #6b7280;
             --accent: #2563eb; --accent-hover: #1d4ed8; --item-hover: #f3f4f6;
             --item-active: #eef2ff; --canvas-bg: #ffffff;
-            --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         @media (prefers-color-scheme: dark) {
             :root {
@@ -26,9 +26,8 @@
         body {
             font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-app);
             color: var(--text-main); 
-            height: 100vh; height: 100dvh; /* 100dvh mencegah UI terpotong navigasi browser HP */
-            overflow: hidden;
-            display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 280px 1fr;
+            height: 100vh; height: 100dvh; overflow: hidden;
+            display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 320px 1fr;
             grid-template-areas: "header header" "sidebar workspace";
             transition: background-color 0.3s, color 0.3s;
         }
@@ -37,21 +36,22 @@
         .logo .material-icons-round { color: var(--accent); }
         .header-actions { display: flex; align-items: center; gap: 8px; }
         .sidebar-area { grid-area: sidebar; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
-        .sidebar-section { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .sidebar-section { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; }
         .divider-horizontal { height: 1px; background-color: var(--border-color); width: 100%; }
         .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .tool-btn {
             display: flex; flex-direction: column; align-items: center; gap: 8px; background-color: var(--bg-app); border: 1px solid var(--border-color);
-            border-radius: 6px; padding: 14px 10px; color: var(--text-main); cursor: pointer; font-size: 12px; transition: all 0.2s;
+            border-radius: 8px; padding: 14px 10px; color: var(--text-main); cursor: pointer; font-size: 12px; transition: all 0.2s;
         }
         .tool-btn:hover { background-color: var(--item-hover); }
         .tool-btn.active { background-color: var(--item-active); border-color: var(--accent); color: var(--accent); }
-        .options-box { background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .options-box { background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
         .option-row { display: flex; align-items: center; justify-content: space-between; }
-        .select-box { background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none; }
+        .select-box { background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: all 0.2s; }
+        .select-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--item-active); }
         .workspace-area { grid-area: workspace; background-color: var(--bg-workspace); display: flex; flex-direction: column; position: relative; overflow: hidden; }
-        .canvas-toolbar { min-height: 42px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 12px; flex-wrap: wrap; gap: 10px; }
+        .canvas-toolbar { min-height: 48px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 12px; flex-wrap: wrap; gap: 10px; z-index: 5; }
         .canvas-wrapper { 
             flex: 1; 
             overflow: auto; /* Mengizinkan scrolling */
@@ -123,10 +123,12 @@
             scrollbar-width: none;  /* Firefox */
         }
 
-        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 4px; display: flex; align-items: center; transition: all 0.2s; }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 6px; display: flex; align-items: center; transition: all 0.2s; }
         .btn-icon:hover { background-color: var(--item-hover); color: var(--text-main); }
-        .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+        .btn-outline:hover { background: var(--item-hover); }
         
         /* Gaya Toast Notification (Pengganti Alert) */
         #toastContainer {
@@ -251,10 +253,29 @@
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
         }
         .modal-box {
-            background: var(--bg-panel); padding: 20px; border-radius: 10px; width: 90%; max-width: 400px;
+            background: var(--bg-panel); padding: 25px; border-radius: 16px; width: 90%; max-width: 400px;
             max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+
+        #todayCount {
+            max-width: 0;
+            opacity: 0;
+            display: inline-block;
+            vertical-align: middle;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            margin-left: 0;
+        }
+        #todayCount.show {
+            max-width: 60px;
+            opacity: 1;
+            margin-left: 6px;
         }
 
         @media (max-width: 768px) {
@@ -311,7 +332,9 @@
     <!-- Modal Konfirmasi Hapus Kustom -->
     <div id="confirmDeleteModal" class="modal-overlay" style="z-index: 1100;">
         <div class="modal-box" style="max-width: 320px; text-align: center; padding: 25px;">
-            <span class="material-icons-round" style="font-size: 48px; color: #ef4444; margin-bottom: 15px;">delete_forever</span>
+            <div style="width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; background: #ef444422;">
+                <span class="material-icons-round" style="font-size:32px; color: #ef4444;">delete_forever</span>
+            </div>
             <h3 style="margin-bottom: 10px; font-size: 16px;">Hapus File?</h3>
             <p id="confirmDeleteMessage" style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Apakah Anda yakin ingin menghapus file ini secara permanen?</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
@@ -324,8 +347,14 @@
     <!-- HEADER -->
     <header class="header-area">
         <div class="logo">
-            <div id="dailyProgress" title="Gambar selesai hari ini" style="background: var(--item-active); color: var(--accent); font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--accent); font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                <span class="material-icons-round" style="font-size: 12px;">task_alt</span>
+            <button id="btnOpenGallery" title="Lihat Hasil Export" style="background: transparent; color: var(--accent); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s;">
+                <span class="material-icons-round" style="font-size: 14px;">folder_special</span>
+            </button>
+            <div id="apiStatus" title="Status Sistem" style="background: transparent; color: var(--text-muted); font-size: 10px; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border-color); font-weight: bold; display: flex; align-items: center; gap: 0; transition: all 0.3s; cursor: pointer;">
+                <span class="material-icons-round" id="apiStatusIcon" style="display: inline-block; font-size: 14px; transition: transform 0.3s ease;">hourglass_empty</span>
+            </div>
+            <div id="dailyProgress" title="Gambar selesai hari ini" style="background: transparent; color: var(--accent); font-size: 10px; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border-color); font-weight: bold; display: flex; align-items: center; gap: 0; cursor: pointer;">
+                <span class="material-icons-round" style="font-size: 14px;">task_alt</span>
                 <span id="todayCount">0</span>
             </div>
             <span>TranslateKomik</span>
@@ -357,7 +386,7 @@
                 </button>
             </div>
             <button id="btnExport" class="btn-primary" style="width: 100%; margin-top: 4px;"><span class="material-icons-round">download</span> Export (Simpan HD)</button>
-            <button id="btnSkipText" class="tool-btn" style="width: 100%; margin-top: 4px; flex-direction: row; justify-content: center; padding: 8px 16px; border-color: #10b981; color: #10b981; background-color: #ecfdf5;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
+            <button id="btnSkipText" class="btn-outline" style="width: 100%; margin-top: 4px; border-color: #10b981; color: #10b981; background: transparent;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
             <!-- Progress indicator -->
             <div id="uploadStatus" style="font-size: 11px; color: var(--accent); display: none; text-align: center; margin-top: 5px;">Mengupload...</div>
         </div>
@@ -407,7 +436,7 @@
     <main class="workspace-area">
         <div class="canvas-toolbar">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="canvasResolution" style="display:none;">800x1200</span>
+                <span id="canvasResolution" style="display:none; font-size: 11px; color: var(--text-muted); background: var(--item-hover); padding: 2px 8px; border-radius: 4px; font-weight: bold;">800x1200</span>
                 <input type="text" id="comicTitle" class="select-box" placeholder="Judul Komik (Otomatis/Manual)" style="width: 250px; font-weight: bold; background: transparent; border-color: transparent;">
             </div>
             <div style="display: flex; align-items: center; gap: 15px; min-width: 0; flex: 1; justify-content: flex-end;">
@@ -439,6 +468,24 @@
         </div>
     </main>
 
+    <!-- FULLSCREEN GALLERY OVERLAY -->
+    <div id="galleryOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-app); z-index:10000; flex-direction:column; backdrop-filter: blur(5px);">
+        <header class="header-area" style="flex-shrink:0; grid-area:auto; height:52px;">
+            <div class="logo">
+                <button id="btnBackToLangs" class="btn-icon" style="display:none; margin-right:5px; background:var(--item-hover); color:var(--accent);"><span class="material-icons-round">arrow_back</span></button>
+                <span class="material-icons-round" style="color:var(--accent);">folder_special</span>
+                <span id="galleryTitle">Galeri Hasil Export</span>
+            </div>
+            <button class="btn-icon" id="btnCloseGallery" style="background:var(--item-hover);"><span class="material-icons-round">close</span></button>
+        </header>
+        <div id="galleryContent" style="flex:1; overflow-y:auto; padding:15px; display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:20px; align-content:start;">
+            <!-- Kartu dimuat di sini -->
+        </div>
+        <div id="galleryFooter" style="padding:15px; display:flex; justify-content:center; border-top:1px solid var(--border-color); background:var(--bg-panel); flex-shrink:0;">
+            <button id="btnLoadMore" class="btn-outline" style="width:200px; font-weight:700; display:none; height:44px;">Muat Lebih Banyak</button>
+        </div>
+    </div>
+
     <!-- SCRIPT LOGIC -->
     <script>
         // Paksa bersihkan data lama yang mungkin nyangkut di memori browser
@@ -446,6 +493,116 @@
         window.exportHistory = {};
         window.cachedTranslations = null;
         window.cachedTitles = null;
+
+        // ==== FUNGSI LOADING API ====
+        if (!document.getElementById('customAnimations')) { const style = document.createElement('style'); style.id = 'customAnimations'; style.innerHTML = `@keyframes spin { 100% { transform:rotate(360deg); } } @keyframes jelly { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(1.3, 0.8); } 50% { transform: scale(0.8, 1.3); } 75% { transform: scale(1.15, 0.9); } } @keyframes moveLeft { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-8px); } } @keyframes moveRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }`; document.head.appendChild(style); }
+        
+        const reactionEmojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😋', '😛', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '😌', '😔', '😪', '🤤', '😴', '😷', '😎', '🤓', '🧐', '😵‍💫', '🥴', '🤯', '🥵', '🥶', '😰', '😥', '😓', '😨', '😧', '😦', '😮', '😯', '😲', '😳', '🥺', '🥹', '😢', '😭', '😱', '😖', '😣', '😞', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖'];
+        function getRandomEmoji() {
+            return reactionEmojis[Math.floor(Math.random() * reactionEmojis.length)];
+        }
+        
+        let apiProcessCount = 0;
+        let emojiTimer = null;
+
+        function setApiLoading(isLoading) {
+            const statusBox = document.getElementById('apiStatus');
+            const statusIcon = document.getElementById('apiStatusIcon');
+            if (isLoading) {
+                apiProcessCount++;
+            } else {
+                apiProcessCount = Math.max(0, apiProcessCount - 1);
+            }
+            
+            if (apiProcessCount > 0) {
+                if (emojiTimer) { clearTimeout(emojiTimer); emojiTimer = null; }
+                statusBox.style.background = 'transparent'; statusBox.style.color = '#10b981'; statusBox.style.borderColor = '#10b981';
+                statusIcon.className = 'material-icons-round';
+                statusIcon.innerText = 'sync'; statusIcon.style.animation = 'spin 2s linear infinite';
+            } else {
+                statusBox.style.background = 'transparent'; statusBox.style.color = 'var(--text-muted)'; statusBox.style.borderColor = 'var(--border-color)';
+                statusIcon.className = 'material-icons-round';
+                statusIcon.innerText = 'hourglass_empty'; statusIcon.style.animation = 'none';
+            }
+        }
+        
+        // Event klik untuk ganti emoji saat idle
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiStatusBox = document.getElementById('apiStatus');
+            const statusIcon = document.getElementById('apiStatusIcon');
+            
+            function showEmojiTemporarily() {
+                if (apiProcessCount === 0) {
+                    if (emojiTimer) clearTimeout(emojiTimer);
+                    
+                    statusIcon.className = '';
+                    statusIcon.innerText = getRandomEmoji();
+                    
+                    // Animasi ikon tengah (Jelly)
+                    statusIcon.style.animation = 'none';
+                    statusIcon.offsetHeight; /* trigger reflow */
+                    statusIcon.style.animation = 'jelly 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+                    
+                    // Geser tetangga (Galeri ke kiri, Progres ke kanan)
+                    const btnGallery = document.getElementById('btnOpenGallery');
+                    const btnProgress = document.getElementById('dailyProgress');
+                    if (btnGallery) {
+                        btnGallery.style.animation = 'none';
+                        btnGallery.offsetHeight;
+                        btnGallery.style.animation = 'moveLeft 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+                    }
+                    if (btnProgress) {
+                        btnProgress.style.animation = 'none';
+                        btnProgress.offsetHeight;
+                        btnProgress.style.animation = 'moveRight 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+                    }
+                    
+                    emojiTimer = setTimeout(() => {
+                        if (apiProcessCount === 0) {
+                            statusIcon.className = 'material-icons-round';
+                            statusIcon.innerText = 'hourglass_empty';
+                            statusIcon.style.animation = 'none';
+                        }
+                        if (btnGallery) btnGallery.style.animation = 'none';
+                        if (btnProgress) btnProgress.style.animation = 'none';
+                        emojiTimer = null;
+                    }, 2000); // Balik ke jam pasir setelah 2 detik
+                }
+            }
+
+            if (apiStatusBox) {
+                apiStatusBox.addEventListener('click', showEmojiTemporarily);
+                
+                // Inisialisasi ikon idle pertama kali
+                statusIcon.className = 'material-icons-round';
+                statusIcon.innerText = 'hourglass_empty';
+                
+                // Munculkan emoji secara acak (antara 1,5 sampai 2 menit)
+                function scheduleRandomEmoji() {
+                    const randomDelay = Math.floor(Math.random() * (120000 - 90000 + 1)) + 90000;
+                    setTimeout(() => {
+                        if (apiProcessCount === 0 && !emojiTimer) {
+                            showEmojiTemporarily();
+                        }
+                        scheduleRandomEmoji();
+                    }, randomDelay);
+                }
+                scheduleRandomEmoji();
+            }
+        });
+
+        // FUNGSI HELPER MENDAPATKAN BENDERA NEGARA
+        function getFlagIcon(lang) {
+            if (!lang) return '';
+            const l = lang.toLowerCase().trim();
+            if (l === 'indonesia' || l === 'indonesian' || l === 'id') return '🇮🇩';
+            if (l === 'inggris' || l === 'english' || l === 'en') return '🇬🇧';
+            if (l === 'jepang' || l === 'japanese' || l === 'jp') return '🇯🇵';
+            if (l === 'korea' || l === 'korean' || l === 'kr') return '🇰🇷';
+            if (l === 'china' || l === 'chinese' || l === 'cn') return '🇨🇳';
+            if (l === 'tagalog' || l === 'filipino' || l === 'tl') return '🇵🇭';
+            return lang; // Kembalikan teks asli jika belum terdaftar
+        }
         
         // ==== SISTEM UNDO / REDO ====
         let undoStack = [];
@@ -684,6 +841,7 @@
             // 2. Upload File ke Server (@bahan)
             uploadStatus.style.display = 'block';
             uploadStatus.innerText = 'Mengupload ke @bahan...';
+            setApiLoading(true);
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
@@ -705,6 +863,7 @@
                 console.error('Error uploading:', err);
                 uploadStatus.innerText = 'Error koneksi!';
             }
+            setApiLoading(false);
             // Reset input
             fileUploadInput.value = '';
         });
@@ -714,6 +873,7 @@
             fileModal.style.display = 'flex';
             fileListContainer.innerHTML = 'Memuat file dari folder @bahan...';
             try {
+                setApiLoading(true);
                 const response = await fetch('/list-bahan');
                 const files = await response.json();
                 
@@ -837,7 +997,7 @@
                             if (isTranslated && languages.length > 0) {
                                 badgesHTML = '<div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">';
                                 languages.forEach(lang => {
-                                    badgesHTML += `<span style="background-color: var(--item-active); color: var(--accent); border: 1px solid var(--accent); padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: bold; white-space: nowrap;" title="Diterjemahkan ke ${lang}">${lang}</span>`;
+                                    badgesHTML += `<span style="background-color: var(--item-active); color: var(--accent); border: 1px solid var(--accent); padding: 2px 6px; border-radius: 10px; font-size: 14px; font-weight: bold; white-space: nowrap;" title="Diterjemahkan ke ${lang}">${getFlagIcon(lang)}</span>`;
                                 });
                                 badgesHTML += '</div>';
                             }
@@ -895,6 +1055,8 @@
 
                         const close = () => { modal.style.display = 'none'; };
 
+                        modal.onclick = (e) => { if (e.target === modal) close(); };
+
                         btnYes.onclick = () => {
                             deleteFileFromServer(fileName, element);
                             close();
@@ -937,11 +1099,16 @@
                 });
             } catch(e) {
                 fileListContainer.innerHTML = '<p style="color:red">Gagal memuat daftar file. Pastikan Server Python berjalan.</p>';
-            }
+            } finally { setApiLoading(false); }
         });
 
         closeModalBtn.addEventListener('click', () => {
             fileModal.style.display = 'none';
+        });
+
+        // Tutup modal jika klik di area luar (overlay)
+        fileModal.addEventListener('click', (e) => {
+            if (e.target === fileModal) fileModal.style.display = 'none';
         });
 
         // ==== FITUR NAVIGASI GAMBAR (PREV/NEXT) ====
@@ -976,6 +1143,7 @@
         // ==== FUNGSI HAPUS FILE ====
         async function deleteFileFromServer(fileName, elementToRemove) {
             try {
+                setApiLoading(true);
                 const response = await fetch('/delete-file', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -991,7 +1159,7 @@
             } catch (err) {
                 console.error("Gagal Hapus File:", err);
                 showToast("Terjadi kesalahan koneksi ke server.", "error");
-            }
+            } finally { setApiLoading(false); }
         }
 
         // Fungsi Umum untuk Menampilkan Gambar di Kertas/Artboard
@@ -1175,7 +1343,7 @@
             btn.innerHTML = '<span class="material-icons-round">sync</span> Processing...';
             btn.disabled = true;
 
-            try {
+            try { setApiLoading(true);
                 const response = await fetch('/export', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1201,6 +1369,7 @@
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                setApiLoading(false);
             }
         });
 
@@ -1323,6 +1492,7 @@
             }
 
             try {
+                setApiLoading(true);
                 const response = await fetch('/process_ocr', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1357,7 +1527,7 @@
                     // Tampilkan bahasa asal yang terdeteksi jika pakai Auto
                     const detectedBox = document.getElementById('detectedLangBox');
                     if (sourceLang === 'Auto' && data.detected_language) {
-                        document.getElementById('detectedLangText').innerText = data.detected_language;
+                        document.getElementById('detectedLangText').innerText = getFlagIcon(data.detected_language) + ' ' + data.detected_language;
                         detectedBox.style.display = 'block';
                     } else {
                         detectedBox.style.display = 'none';
@@ -1373,6 +1543,7 @@
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                setApiLoading(false);
             }
         });
 
@@ -1409,6 +1580,7 @@
             }
 
             try {
+                setApiLoading(true);
                 const response = await fetch('/translate_texts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1444,6 +1616,7 @@
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                setApiLoading(false);
             }
         });
 
@@ -1460,6 +1633,7 @@
             btn.disabled = true;
 
             try {
+                setApiLoading(true);
                 const response = await fetch('/skip_translation', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1479,6 +1653,7 @@
             } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                setApiLoading(false);
             }
         });
 
@@ -1719,6 +1894,18 @@
             }
         }
 
+
+        // Animasi muncul & menghilang angka progress harian
+        let progressTimeout;
+        document.getElementById('dailyProgress').onclick = function() {
+            const count = document.getElementById('todayCount');
+            count.classList.add('show');
+            if (progressTimeout) clearTimeout(progressTimeout);
+            progressTimeout = setTimeout(() => {
+                count.classList.remove('show');
+            }, 3000); // Menghilang setelah 3 detik
+        };
+
         async function updateDailyStats() {
             try {
                 const response = await fetch('/get_stats');
@@ -1759,10 +1946,11 @@
                 badge.style.border = '1px solid var(--accent)';
                 badge.style.padding = '2px 8px';
                 badge.style.borderRadius = '12px';
-                badge.style.fontSize = '10px';
+                badge.style.fontSize = '14px';
                 badge.style.fontWeight = 'bold';
                 badge.style.cursor = 'pointer';
-                badge.innerText = lang;
+                badge.title = "Versi: " + lang;
+                badge.innerText = getFlagIcon(lang);
                 
                 badge.onclick = () => {
                     const img = artboard.querySelector('img');
@@ -1996,21 +2184,174 @@
                     }
                 }
                 
-                // Terapkan warna dominan sebagai background
-                textEl.style.backgroundColor = `rgb(${domR}, ${domG}, ${domB})`;
-                textEl.style.border = "none"; // Hilangkan garis putus-putus saat selesai edit
+                                // Terapkan warna dominan sebagai background
+                                textEl.style.backgroundColor = `rgb(${domR}, ${domG}, ${domB})`;
+                                textEl.style.border = "none"; // Hilangkan garis putus-putus saat selesai edit
                 
-                // Ubah warna font (hitam/putih) agar selalu kontras (terbaca) dengan backgroundnya
-                const yiq = ((domR * 299) + (domG * 587) + (domB * 114)) / 1000;
-                textEl.style.color = (yiq >= 128) ? 'black' : 'white';
+                                // Ubah warna font (hitam/putih) agar selalu kontras (terbaca) dengan backgroundnya
+                                const yiq = ((domR * 299) + (domG * 587) + (domB * 114)) / 1000;
+                                textEl.style.color = (yiq >= 128) ? 'black' : 'white';
                 
-            } catch (err) {
-                console.log("Tidak bisa deteksi warna gambar (Mungkin ada masalah CORS/Local Server): ", err);
-                textEl.style.backgroundColor = 'white'; // Warna aman
-                textEl.style.color = 'black';
-                textEl.style.border = "none";
+                            } catch (err) {
+                                console.log("Tidak bisa deteksi warna gambar (Mungkin ada masalah CORS/Local Server): ", err);
+                                textEl.style.backgroundColor = 'white'; // Warna aman
+                                textEl.style.color = 'black';
+                                textEl.style.border = "none";
+                            }
+                        }
+                
+        // ==== FITUR GALERI HASIL (MIRIP REVENSI.HTML) ====
+        const btnOpenGallery = document.getElementById('btnOpenGallery');
+        const btnCloseGallery = document.getElementById('btnCloseGallery');
+        const galleryOverlay = document.getElementById('galleryOverlay');
+        const galleryContent = document.getElementById('galleryContent');
+        const btnBackToLangs = document.getElementById('btnBackToLangs');
+        const galleryTitle = document.getElementById('galleryTitle');
+        const btnLoadMore = document.getElementById('btnLoadMore');
+
+        let galleryOffset = 0;
+        const galleryLimit = 12;
+        let selectedGalleryLang = '';
+        let currentGallerySubfolder = '';
+
+        btnOpenGallery.onclick = () => {
+            galleryOverlay.style.display = 'flex';
+            openLangView();
+        };
+
+        btnCloseGallery.onclick = () => {
+            galleryOverlay.style.display = 'none';
+        };
+
+        function openLangView() {
+            selectedGalleryLang = '';
+            currentGallerySubfolder = '';
+            btnBackToLangs.style.display = 'none';
+            btnLoadMore.style.display = 'none';
+            galleryTitle.innerText = 'Pilih Bahasa Hasil';
+            loadGalleryLangs();
+        }
+
+        async function loadGalleryLangs() {
+            galleryContent.innerHTML = '<div style="grid-column:1/-1; padding:50px; text-align:center; color:var(--text-muted);"><p>Memuat Bahasa...</p></div>';
+            setApiLoading(true);
+            try {
+                const res = await fetch('/list-output-categories');
+                const langs = await res.json();
+                galleryContent.innerHTML = '';
+                
+                if (langs.length === 0) {
+                    galleryContent.innerHTML = '<div style="grid-column:1/-1; padding:50px; text-align:center; color:var(--text-muted);"><span class="material-icons-round" style="font-size:64px; opacity:0.2;">folder_off</span><p>Belum ada hasil export.</p></div>';
+                    return;
+                }
+
+                langs.forEach(lang => {
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:10px;';
+                    card.onmouseover = () => card.style.background = 'var(--item-hover)';
+                    card.onmouseout = () => card.style.background = 'var(--bg-panel)';
+                    card.innerHTML = `<span style="font-size:48px;">${getFlagIcon(lang)}</span><span style="font-size:13px; font-weight:700; color:var(--text-main);">${lang}</span>`;
+                    card.onclick = () => {
+                        selectedGalleryLang = lang;
+                        currentGallerySubfolder = '';
+                        galleryOffset = 0;
+                        openItemView();
+                    };
+                    galleryContent.appendChild(card);
+                });
+            } catch (e) {
+                galleryContent.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#ef4444; padding:20px;">Gagal memuat bahasa: ${e.message}</p>`;
+            } finally {
+                setApiLoading(false);
             }
         }
-    </script>
-</body>
+
+        function openItemView() {
+            galleryOffset = 0;
+            btnBackToLangs.style.display = 'flex';
+            btnBackToLangs.onclick = () => {
+                if (currentGallerySubfolder === '') {
+                    openLangView();
+                } else {
+                    // Naik satu level folder
+                    const parts = currentGallerySubfolder.split('/');
+                    parts.pop();
+                    currentGallerySubfolder = parts.join('/');
+                    galleryOffset = 0;
+                    openItemView();
+                }
+            };
+            galleryTitle.innerText = currentGallerySubfolder ? `${selectedGalleryLang} / ${currentGallerySubfolder}` : `Hasil: ${selectedGalleryLang}`;
+            galleryContent.innerHTML = '';
+            loadGalleryItems();
+        }
+
+        async function loadGalleryItems() {
+            setApiLoading(true);
+            btnLoadMore.disabled = true;
+            btnLoadMore.innerText = 'Memuat...';
+            
+            try {
+                const res = await fetch(`/list-hasil?lang=${encodeURIComponent(selectedGalleryLang)}&subfolder=${encodeURIComponent(currentGallerySubfolder)}&limit=${galleryLimit}&offset=${galleryOffset}`);
+                const data = await res.json();
+                
+                // Hanya tampilkan folder jika kita di halaman pertama (offset 0)
+                if (galleryOffset === 0 && data.folders && data.folders.length > 0) {
+                    data.folders.forEach(folderName => {
+                        const card = document.createElement('div');
+                        card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; padding:15px; text-align:center; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:8px;';
+                        card.onmouseover = () => card.style.background = 'var(--item-hover)';
+                        card.onmouseout = () => card.style.background = 'var(--bg-panel)';
+                        card.innerHTML = `<span class="material-icons-round" style="font-size:48px; color:#f59e0b;">folder</span><span style="font-size:12px; font-weight:700; color:var(--text-main); word-break:break-word; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${folderName}</span>`;
+                        card.onclick = () => {
+                            currentGallerySubfolder = currentGallerySubfolder ? `${currentGallerySubfolder}/${folderName}` : folderName;
+                            openItemView();
+                        };
+                        galleryContent.appendChild(card);
+                    });
+                }
+
+                if (data.items.length === 0 && galleryOffset === 0 && (!data.folders || data.folders.length === 0)) {
+                    galleryContent.innerHTML = '<div style="grid-column:1/-1; padding:50px; text-align:center; color:var(--text-muted);"><p>Folder ini kosong.</p></div>';
+                    btnLoadMore.style.display = 'none';
+                    return;
+                }
+
+                data.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; overflow:hidden; position:relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; display:flex; flex-direction:column;';
+                    
+                    card.innerHTML = `
+                        <div style="width: 100%; aspect-ratio: 1/1; position: relative; background: #eee; overflow: hidden;">
+                            <img src="${item.url}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        </div>
+                        <div style="padding:10px; background:var(--bg-panel); display:flex; flex-direction:column; gap:5px;">
+                            <span style="font-size:11px; font-weight:700; color:var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.filename}">${item.filename}</span>
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <button class="btn-primary" style="flex:1; padding:6px; font-size:10px;" onclick="window.open('${item.url}', '_blank')"><span class="material-icons-round" style="font-size:14px;">open_in_new</span> Lihat</button>
+                            </div>
+                        </div>`;
+                    
+                    galleryContent.appendChild(card);
+                });
+
+                if (data.has_more) {
+                    btnLoadMore.style.display = 'block';
+                    btnLoadMore.innerText = 'Muat Lebih Banyak';
+                    galleryOffset += data.items.length;
+                } else {
+                    btnLoadMore.style.display = 'none';
+                }
+            } catch (e) {
+                const err = document.createElement('p');
+                err.style.cssText = 'grid-column:1/-1; text-align:center; color:#ef4444; padding:20px;';
+                err.innerText = 'Gagal memuat: ' + e.message;
+                galleryContent.appendChild(err);
+            } finally {
+                setApiLoading(false);
+                btnLoadMore.disabled = false;
+            }
+        }
+
+        btnLoadMore.onclick = loadGalleryItems;                    </script></body>
 </html>

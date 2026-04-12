@@ -715,6 +715,73 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(history).encode('utf-8'))
             return
+
+        elif self.path == '/list-output-categories':
+            categories = []
+            if os.path.exists(OUTPUT_DIR):
+                categories = [d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))]
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(categories).encode('utf-8'))
+            return
+
+        elif self.path.startswith('/list-hasil'):
+            # Parsing query params: ?lang=Indonesia&subfolder=path/to/dir&limit=12&offset=0
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            lang = params.get('lang', [''])[0]
+            subfolder = params.get('subfolder', [''])[0]
+            limit = int(params.get('limit', [12])[0])
+            offset = int(params.get('offset', [0])[0])
+            
+            folders = []
+            items = []
+            total_items = 0
+            
+            if lang:
+                target_base = os.path.join(OUTPUT_DIR, lang, subfolder)
+                if os.path.exists(target_base) and os.path.isdir(target_base):
+                    # List directory contents
+                    try:
+                        entries = os.listdir(target_base)
+                        # Filter folders and files
+                        for entry in entries:
+                            full_entry_path = os.path.join(target_base, entry)
+                            if os.path.isdir(full_entry_path):
+                                if entry not in [".git", "__pycache__"]:
+                                    folders.append(entry)
+                            elif entry.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                                mtime = os.path.getmtime(full_entry_path)
+                                # URL safe path
+                                rel_path_from_lang = os.path.relpath(full_entry_path, os.path.join(OUTPUT_DIR, lang))
+                                items.append({
+                                    "filename": entry,
+                                    "url": f"/hasil/{lang}/{rel_path_from_lang}",
+                                    "mtime": mtime
+                                })
+                    except Exception as e:
+                        print(f"Error reading dir: {e}")
+
+            # Sort items by newest first
+            items.sort(key=lambda x: x['mtime'], reverse=True)
+            folders.sort() # Folders alphabetical
+            
+            total_items = len(items)
+            paginated_items = items[offset : offset + limit] if limit > 0 else items[offset:]
+            
+            response_data = {
+                "folders": folders,
+                "items": paginated_items,
+                "total": total_items,
+                "has_more": (offset + len(paginated_items)) < total_items
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode('utf-8'))
+            return
             
         # Panggil default handler untuk serve index.html, bahan/..., hasil/...
         return super().do_GET()
