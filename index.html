@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Komik Editor Pro - All in One</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         :root {
             --bg-app: #f4f6f8; --bg-panel: #ffffff; --bg-workspace: #e1e4e8;
@@ -505,6 +506,183 @@
         let apiProcessCount = 0;
         let emojiTimer = null;
 
+        // ==== LOGIKA GRAVITASI (GOOGLE GRAVITY EASTER EGG) ====
+        let isGravityActive = false;
+        let gravityEngine, gravityRunner;
+        let elementBodies = [];
+        let gravityClones = [];
+        let rapidClickCount = 0;
+        let rapidClickTimer = null;
+
+        const handleOrientation = (event) => {
+            if (!isGravityActive || !gravityEngine) return;
+            const x = event.gamma / 20;
+            const y = event.beta / 20;
+            gravityEngine.world.gravity.x = x;
+            gravityEngine.world.gravity.y = y;
+        };
+
+        async function activateGravity() {
+            if (isGravityActive || typeof Matter === 'undefined') return;
+            
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission !== 'granted') console.log("Gyro permission denied");
+                } catch (e) { console.error(e); }
+            }
+
+            isGravityActive = true;
+            window.addEventListener('deviceorientation', handleOrientation);
+            window.addEventListener('keydown', (e) => { if (e.key === 'Escape') deactivateGravity(); });
+            
+            const { Engine, Runner, Bodies, Composite, MouseConstraint, Mouse } = Matter;
+            gravityEngine = Engine.create();
+            gravityRunner = Runner.create();
+
+            document.querySelectorAll('.header-area, .sidebar-area, .workspace-area, .sidebar-section, .options-box, .tool-grid, .canvas-toolbar').forEach(el => {
+                el.dataset.origBg = el.style.background || '';
+                el.dataset.origBorder = el.style.border || '';
+                el.style.background = 'transparent';
+                el.style.border = 'none';
+                el.style.boxShadow = 'none';
+            });
+
+            const selectors = [
+                '.logo > *', '#apiStatusIcon', '#dailyProgress > *', '.header-actions > *',
+                '.sidebar-section .section-title', '.sidebar-section .divider-horizontal',
+                '.tool-grid > *', '.options-box > *', '.options-box label', '.options-box select', '.options-box input',
+                '#btnExport', '#btnSkipText', '#btnAddText', '#btnTranslate', '#btnRetranslate',
+                '.canvas-toolbar > div > *', '#zoomText', '.artboard img', '.comic-text',
+                '#artboardPlaceholder > *'
+            ];
+            
+            const targets = document.querySelectorAll(selectors.join(', '));
+            
+            targets.forEach((el) => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+
+                // PECAH ELEMEN LEBAR (SHATTER)
+                const maxRatio = 1.5;
+                const isTooWide = rect.width > rect.height * maxRatio && rect.width > 80;
+
+                if (isTooWide) {
+                    const numPieces = Math.ceil(rect.width / (rect.height * 1.2));
+                    const pieceWidth = rect.width / numPieces;
+                    
+                    el.style.visibility = 'hidden'; 
+                    
+                    for (let i = 0; i < numPieces; i++) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'gravity-clone';
+                        wrapper.style.cssText = `position:fixed; width:${pieceWidth}px; height:${rect.height}px; overflow:hidden; z-index:9999; pointer-events:auto; left:0; top:0;`;
+                        
+                        const clone = el.cloneNode(true);
+                        const computed = window.getComputedStyle(el);
+                        wrapper.style.backgroundColor = computed.backgroundColor;
+                        wrapper.style.borderRadius = computed.borderRadius;
+                        wrapper.style.border = computed.border;
+
+                        clone.style.cssText = `position:absolute; width:${rect.width}px; height:${rect.height}px; left:${-(i * pieceWidth)}px; top:0; margin:0; transform:none; visibility:visible; border:none; background:transparent;`;
+                        
+                        wrapper.appendChild(clone);
+                        document.body.appendChild(wrapper);
+                        gravityClones.push(wrapper);
+                        
+                        const body = Bodies.rectangle(
+                            rect.left + (i * pieceWidth) + pieceWidth / 2,
+                            rect.top + rect.height / 2,
+                            pieceWidth,
+                            rect.height,
+                            { restitution: 0.4, friction: 0.2 }
+                        );
+                        body.element = wrapper;
+                        elementBodies.push(body);
+                    }
+                } else {
+                    el.dataset.origStyle = el.getAttribute('style') || '';
+                    el.dataset.origPos = el.style.position || '';
+                    
+                    const body = Bodies.rectangle(
+                        rect.left + rect.width / 2,
+                        rect.top + rect.height / 2,
+                        rect.width,
+                        rect.height,
+                        { restitution: 0.5, friction: 0.1, chamfer: { radius: 2 } }
+                    );
+                    
+                    body.element = el;
+                    elementBodies.push(body);
+                    
+                    el.style.position = 'fixed';
+                    el.style.left = '0';
+                    el.style.top = '0';
+                    el.style.width = rect.width + 'px';
+                    el.style.height = rect.height + 'px';
+                    el.style.margin = '0';
+                    el.style.zIndex = '9999';
+                    el.style.transformOrigin = 'center';
+                }
+            });
+
+            const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth * 2, 100, { isStatic: true });
+            const leftWall = Bodies.rectangle(-50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
+            const rightWall = Bodies.rectangle(window.innerWidth + 50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
+            const ceiling = Bodies.rectangle(window.innerWidth / 2, -50, window.innerWidth * 2, 100, { isStatic: true });
+            
+            Composite.add(gravityEngine.world, [...elementBodies, ground, leftWall, rightWall, ceiling]);
+
+            const mouse = Mouse.create(document.body);
+            const mouseConstraint = MouseConstraint.create(gravityEngine, {
+                mouse: mouse,
+                constraint: { stiffness: 0.2, render: { visible: false } }
+            });
+            Composite.add(gravityEngine.world, mouseConstraint);
+
+            (function update() {
+                if (!isGravityActive) return;
+                elementBodies.forEach(body => {
+                    const { x, y } = body.position;
+                    body.element.style.transform = `translate(${x - body.element.offsetWidth / 2}px, ${y - body.element.offsetHeight / 2}px) rotate(${body.angle}rad)`;
+                });
+                Engine.update(gravityEngine);
+                requestAnimationFrame(update);
+            })();
+
+            Runner.run(gravityRunner, gravityEngine);
+            showToast("GRAVITASI AKTIF! Elemen pecah berkeping-keping.", "info", 5000);
+        }
+
+        function deactivateGravity() {
+            if (!isGravityActive) return;
+            isGravityActive = false;
+            window.removeEventListener('deviceorientation', handleOrientation);
+            
+            Matter.Runner.stop(gravityRunner);
+            
+            document.querySelectorAll('.header-area, .sidebar-area, .workspace-area, .sidebar-section, .options-box, .tool-grid, .canvas-toolbar').forEach(el => {
+                el.style.background = el.dataset.origBg || '';
+                el.style.border = el.dataset.origBorder || '';
+                el.style.boxShadow = '';
+            });
+
+            elementBodies.forEach(body => {
+                const el = body.element;
+                if (!el.classList.contains('gravity-clone')) {
+                    el.setAttribute('style', el.dataset.origStyle);
+                    el.style.position = el.dataset.origPos;
+                    el.style.transform = '';
+                    el.style.visibility = 'visible';
+                }
+            });
+            
+            gravityClones.forEach(clone => clone.remove());
+            gravityClones = [];
+            elementBodies = [];
+            showToast("Sistem dipulihkan!", "success");
+        }
+
         function setApiLoading(isLoading) {
             const statusBox = document.getElementById('apiStatus');
             const statusIcon = document.getElementById('apiStatusIcon');
@@ -531,7 +709,25 @@
             const apiStatusBox = document.getElementById('apiStatus');
             const statusIcon = document.getElementById('apiStatusIcon');
             
-            function showEmojiTemporarily() {
+            function showEmojiTemporarily(e) {
+                if (isGravityActive) {
+                    deactivateGravity();
+                    return;
+                }
+
+                // Deteksi Klik Cepat (Manual saja)
+                if (e && e.type === 'click') {
+                    rapidClickCount++;
+                    clearTimeout(rapidClickTimer);
+                    rapidClickTimer = setTimeout(() => { rapidClickCount = 0; }, 500);
+                    
+                    if (rapidClickCount >= 5) {
+                        activateGravity();
+                        rapidClickCount = 0;
+                        return;
+                    }
+                }
+
                 if (apiProcessCount === 0) {
                     if (emojiTimer) clearTimeout(emojiTimer);
                     
