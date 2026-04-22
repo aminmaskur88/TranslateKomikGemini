@@ -14,8 +14,15 @@
             --item-active: #eef2ff; --canvas-bg: #ffffff;
             --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
+        :root[data-theme="dark"] {
+            --bg-app: #111111; --bg-panel: #1e1e1e; --bg-workspace: #161616;
+            --border-color: #333333; --text-main: #e5e5e5; --text-muted: #888888;
+            --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
+            --item-active: #2a3a50; --canvas-bg: #e0e0e0;
+            --shadow-canvas: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
         @media (prefers-color-scheme: dark) {
-            :root {
+            :root:not([data-theme="light"]) {
                 --bg-app: #111111; --bg-panel: #1e1e1e; --bg-workspace: #161616;
                 --border-color: #333333; --text-main: #e5e5e5; --text-muted: #888888;
                 --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
@@ -345,6 +352,36 @@
         </div>
     </div>
 
+    <!-- Modal Pilih Bahasa Export Semua -->
+    <div id="exportAllLangsModal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-box" style="max-width: 300px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 15px;">Pilih Bahasa Export</h3>
+                <button id="btnCloseExportAllLangs" class="btn-icon"><span class="material-icons-round">close</span></button>
+            </div>
+            <div id="exportAllLangsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" value="Indonesian" checked> Indonesia (ID)</label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" value="English" checked> Inggris (EN)</label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" value="Tagalog" checked> Tagalog (TL)</label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;"><input type="checkbox" value="Spanish" checked> Spanyol (ES)</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ubah Teks Watermark -->
+    <div id="wmTextModal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-box" style="max-width: 320px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 15px;">Ubah Teks Watermark</h3>
+                <button id="btnCloseWmModal" class="btn-icon"><span class="material-icons-round">close</span></button>
+            </div>
+            <input type="text" id="wmTextInput" class="select-box" style="width: 100%; margin-bottom: 15px;" placeholder="Masukkan teks watermark...">
+            <div style="display: flex; gap: 10px;">
+                <button id="btnSaveWmText" class="btn-primary" style="flex: 1; justify-content: center;">Simpan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header class="header-area">
         <div class="logo">
@@ -361,6 +398,7 @@
             <span>TranslateKomik</span>
         </div>
         <div class="header-actions">
+            <button id="btnDarkMode" class="btn-icon" title="Toggle Dark Mode"><span class="material-icons-round" id="iconDarkMode">dark_mode</span></button>
             <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen"><span class="material-icons-round" id="iconFullscreen">fullscreen</span></button>
             <!-- Tombol Export dipindah ke sidebar -->
         </div>
@@ -387,6 +425,10 @@
                 </button>
             </div>
             <button id="btnExport" class="btn-primary" style="width: 100%; margin-top: 4px;"><span class="material-icons-round">download</span> Export (Simpan HD)</button>
+            <div style="display: flex; gap: 4px; margin-top: 4px;">
+                <button id="btnExportAll" class="btn-primary" style="flex: 1; background-color: #8b5cf6;" title="Simpan ke semua bahasa sekaligus"><span class="material-icons-round">auto_awesome_motion</span> Semua Bahasa</button>
+                <button id="btnExportAllSettings" class="btn-outline" style="padding: 0 10px;" title="Pilih Bahasa"><span class="material-icons-round">checklist</span></button>
+            </div>
             <button id="btnSkipText" class="btn-outline" style="width: 100%; margin-top: 4px; border-color: #10b981; color: #10b981; background: transparent;"><span class="material-icons-round">check_circle</span> Tanpa Teks (Lewati)</button>
             <!-- Progress indicator -->
             <div id="uploadStatus" style="font-size: 11px; color: var(--accent); display: none; text-align: center; margin-top: 5px;">Mengupload...</div>
@@ -404,6 +446,7 @@
                         <option value="Korean">Korea (KR)</option>
                         <option value="Chinese">China (CN)</option>
                         <option value="English">Inggris (EN)</option>
+                        <option value="Spanish">Spanyol (ES)</option>
                     </select>
                 </div>
                 <div class="option-row">
@@ -412,11 +455,21 @@
                         <option value="Indonesian">Indonesia (ID)</option>
                         <option value="English">Inggris (EN)</option>
                         <option value="Tagalog">Tagalog (TL)</option>
+                        <option value="Spanish">Spanyol (ES)</option>
                         <option value="Manual">Masukan Manual</option>
                     </select>
                 </div>
                 <div class="option-row" id="manualTargetRow" style="display: none; margin-top: 5px;">
                     <input type="text" id="manualTargetLang" class="select-box" placeholder="Ketik bahasa tujuan..." style="width: 100%;">
+                </div>
+            </div>
+            <div id="translateLangsContainer" style="margin-top: 8px; padding: 10px; background: var(--bg-app); border-radius: 8px; border: 1px solid var(--border-color);">
+                <span style="font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 6px;">Otomatis Tambahan:</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;"><input type="checkbox" value="Indonesian" checked> Indo</label>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;"><input type="checkbox" value="English" checked> English</label>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;"><input type="checkbox" value="Tagalog" checked> Tagalog</label>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;"><input type="checkbox" value="Spanish" checked> Spanish</label>
                 </div>
             </div>
             <div id="detectedLangBox" style="display: none; font-size: 11px; color: var(--accent); text-align: center; margin-top: 5px; font-weight: bold;">Terdeteksi: <span id="detectedLangText"></span></div>
@@ -427,8 +480,9 @@
         <div class="divider-horizontal"></div>
         <div class="sidebar-section">
             <h3 class="section-title">Alat Edit</h3>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button id="btnAddText" class="tool-btn" style="width: 100%; flex-direction: row; justify-content: start; padding-left: 15px;"><span class="material-icons-round">title</span> <span>Tambah Teks</span></button>
+            <div style="display: flex; gap: 4px;">
+                <button id="btnAddText" class="tool-btn" style="flex: 1; flex-direction: row; justify-content: start; padding-left: 10px;"><span class="material-icons-round">title</span> <span>Teks</span></button>
+                <button id="btnWMText" class="tool-btn" style="flex: 1; flex-direction: row; justify-content: start; padding-left: 10px;" title="Hold ubah teks WM"><span class="material-icons-round">water_drop</span> <span>WM</span></button>
             </div>
         </div>
     </aside>
@@ -489,8 +543,7 @@
 
     <!-- SCRIPT LOGIC -->
     <script>
-        // Paksa bersihkan data lama yang mungkin nyangkut di memori browser
-        localStorage.clear(); 
+        // Data lama tetap dipertahankan (seperti WM text & Theme)
         window.exportHistory = {};
         window.cachedTranslations = null;
         window.cachedTitles = null;
@@ -764,6 +817,7 @@
             if (l === 'korea' || l === 'korean' || l === 'kr') return '🇰🇷';
             if (l === 'china' || l === 'chinese' || l === 'cn') return '🇨🇳';
             if (l === 'tagalog' || l === 'filipino' || l === 'tl') return '🇵🇭';
+            if (l === 'spanyol' || l === 'spanish' || l === 'es') return '🇪🇸';
             return lang; // Kembalikan teks asli jika belum terdaftar
         }
         
@@ -882,6 +936,36 @@
 
         // Simpan state saat judul berubah
         document.getElementById('comicTitle').onblur = saveState;
+
+        // ==== FITUR DARK MODE ====
+        const btnDarkMode = document.getElementById('btnDarkMode');
+        const iconDarkMode = document.getElementById('iconDarkMode');
+        
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark' || (!currentTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            iconDarkMode.innerText = 'light_mode';
+            btnDarkMode.title = 'Ganti ke Light Mode';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            iconDarkMode.innerText = 'dark_mode';
+            btnDarkMode.title = 'Ganti ke Dark Mode';
+        }
+
+        btnDarkMode.addEventListener('click', () => {
+            let theme = document.documentElement.getAttribute('data-theme');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                iconDarkMode.innerText = 'dark_mode';
+                btnDarkMode.title = 'Ganti ke Dark Mode';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                iconDarkMode.innerText = 'light_mode';
+                btnDarkMode.title = 'Ganti ke Light Mode';
+            }
+        });
 
         // ==== FITUR FULLSCREEN ====
         const btnFullscreen = document.getElementById('btnFullscreen');
@@ -1536,14 +1620,157 @@
             }
         });
 
-        // ==== FITUR TERJEMAHAN OTOMATIS (API GEMINI) ====
-        function applyTranslationsFromCache(forceRebuild = false) {
-            let targetDropdown = document.getElementById('langTarget');
-            let targetValue = targetDropdown.value;
-            let targetLang = targetValue;
+        // ==== FITUR EXPORT SEMUA BAHASA ====
+        const btnExportAll = document.getElementById('btnExportAll');
+        const btnExportAllSettings = document.getElementById('btnExportAllSettings');
+        const exportAllLangsModal = document.getElementById('exportAllLangsModal');
+        const btnCloseExportAllLangs = document.getElementById('btnCloseExportAllLangs');
+
+        btnExportAllSettings.addEventListener('click', () => {
+            exportAllLangsModal.style.display = 'flex';
+        });
+
+        btnCloseExportAllLangs.addEventListener('click', () => {
+            exportAllLangsModal.style.display = 'none';
+        });
+
+        exportAllLangsModal.addEventListener('click', (e) => {
+            if (e.target === exportAllLangsModal) exportAllLangsModal.style.display = 'none';
+        });
+
+        btnExportAll.addEventListener('click', async () => {
+            if (!window.cachedTranslations) {
+                showToast("Belum ada terjemahan! Silakan klik 'Terjemahkan' terlebih dahulu.", "error");
+                return;
+            }
+
+            const imgEl = artboard.querySelector('img');
+            if (!imgEl || !window.currentFileName) {
+                showToast("Tidak ada gambar untuk di-export!", "error");
+                return;
+            }
             
-            if (targetValue === 'Manual') {
-                targetLang = document.getElementById('manualTargetLang').value.trim();
+            const checkboxes = document.querySelectorAll('#exportAllLangsContainer input[type="checkbox"]:checked');
+            const selectedLangs = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedLangs.length === 0) {
+                showToast("Pilih setidaknya satu bahasa di pengaturan!", "info");
+                return;
+            }
+            
+            const btn = document.getElementById('btnExportAll');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">sync</span> Proses...';
+            btn.disabled = true;
+            
+            setApiLoading(true);
+            let successCount = 0;
+            let failCount = 0;
+            
+            // Simpan bahasa saat ini agar bisa dikembalikan nanti
+            let targetDropdown = document.getElementById('langTarget');
+            const originalDropdownValue = targetDropdown.value;
+            let actualOriginalLang = originalDropdownValue === 'Manual' ? document.getElementById('manualTargetLang').value.trim() : originalDropdownValue;
+            
+            try {
+                for (const lang of selectedLangs) {
+                    // Cek apakah bahasa ini ada di cache
+                    let hasCacheForLang = false;
+                    if (Array.isArray(window.cachedTranslations)) {
+                        // Jika format array, berarti cuma ada 1 bahasa
+                        if (actualOriginalLang.toLowerCase() === lang.toLowerCase()) {
+                             hasCacheForLang = true;
+                        }
+                    } else {
+                        const langKey = Object.keys(window.cachedTranslations).find(k => k.toLowerCase() === lang.toLowerCase());
+                        if (langKey) hasCacheForLang = true;
+                    }
+                    
+                    if (!hasCacheForLang) {
+                        failCount++;
+                        continue;
+                    }
+                    
+                    // Terapkan bahasa ke UI
+                    applyTranslationsFromCache(false, lang);
+                    
+                    // Delay sejenak agar UI (dan ukuran kotak font-size auto-scale) menyesuaikan
+                    await new Promise(r => setTimeout(r, 100));
+                    
+                    // Ambil resolusi dan elemen yang baru di-update
+                    const rectImg = imgEl.getBoundingClientRect();
+                    const scaleX = imgEl.naturalWidth / rectImg.width;
+                    const scaleY = imgEl.naturalHeight / rectImg.height;
+                    const texts = document.querySelectorAll('.comic-text');
+                    const comicTitle = document.getElementById('comicTitle').value.trim();
+                    
+                    const exportData = {
+                        fileName: window.currentFileName,
+                        target_lang: lang,
+                        comicTitle: comicTitle,
+                        elements: []
+                    };
+
+                    texts.forEach(el => {
+                        const rectBox = el.getBoundingClientRect();
+                        exportData.elements.push({
+                            text: el.innerText,
+                            x: (rectBox.left - rectImg.left) * scaleX,
+                            y: (rectBox.top - rectImg.top) * scaleY,
+                            w: rectBox.width * scaleX,
+                            h: rectBox.height * scaleY,
+                            fontSize: parseFloat(window.getComputedStyle(el).fontSize) * scaleY,
+                            bgColor: window.getComputedStyle(el).backgroundColor,
+                            textColor: window.getComputedStyle(el).color
+                        });
+                    });
+                    
+                    // POST /export
+                    const response = await fetch('/export', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(exportData)
+                    });
+                    
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                }
+                
+                if (successCount > 0) {
+                    showToast(`Export Semua: Berhasil ${successCount}, Gagal/Belum Ada Cache ${failCount}`, "success");
+                    if (typeof updateExportHistoryDisplay === 'function') updateExportHistoryDisplay();
+                } else {
+                    showToast("Semua Export Gagal atau tidak ada cache bahasa yang cocok.", "error");
+                }
+                
+            } catch (err) {
+                showToast("Terjadi kesalahan saat batch export.", "error");
+                console.error(err);
+            } finally {
+                // Kembalikan ke bahasa semula di UI
+                applyTranslationsFromCache(false, actualOriginalLang);
+                
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                setApiLoading(false);
+            }
+        });
+
+        // ==== FITUR TERJEMAHAN OTOMATIS (API GEMINI) ====
+        function applyTranslationsFromCache(forceRebuild = false, overrideLang = null) {
+            let targetLang = overrideLang;
+            if (!targetLang) {
+                let targetDropdown = document.getElementById('langTarget');
+                let targetValue = targetDropdown.value;
+                targetLang = targetValue;
+                
+                if (targetValue === 'Manual') {
+                    targetLang = document.getElementById('manualTargetLang').value.trim();
+                }
             }
 
             if (!window.cachedTranslations) return false;
@@ -1578,7 +1805,9 @@
             
             if (forceRebuild || (!hasGeminiBubbles && existingElements.length === 0)) {
                 if (forceRebuild) {
-                    existingElements.forEach(el => el.remove());
+                    existingElements.forEach(el => {
+                        if (el.dataset.isWm !== 'true') el.remove();
+                    });
                 }
                 
                 translations.forEach((text, i) => {
@@ -1653,6 +1882,15 @@
                     return;
                 }
             }
+            
+            // Ambil bahasa-bahasa yang dicentang untuk otomatisasi tambahan
+            const checkboxes = document.querySelectorAll('#translateLangsContainer input[type="checkbox"]:checked');
+            const selectedLangs = Array.from(checkboxes).map(cb => cb.value);
+            
+            // Pastikan targetLang masuk ke dalam daftar jika belum ada
+            if (!selectedLangs.some(l => l.toLowerCase() === targetLang.toLowerCase())) {
+                selectedLangs.push(targetLang);
+            }
 
             try {
                 setApiLoading(true);
@@ -1662,7 +1900,8 @@
                     body: JSON.stringify({ 
                         filename: window.currentFileName,
                         source_lang: sourceLang,
-                        target_lang: targetLang
+                        target_lang: targetLang,
+                        selected_langs: selectedLangs
                     })
                 });
                 
@@ -2047,6 +2286,92 @@
             saveState(); // Simpan riwayat setelah tambah
         });
 
+        // ==== FITUR WM TEXT (WATERMARK) ====
+        const btnWMText = document.getElementById('btnWMText');
+        const wmTextModal = document.getElementById('wmTextModal');
+        const wmTextInput = document.getElementById('wmTextInput');
+        const btnCloseWmModal = document.getElementById('btnCloseWmModal');
+        const btnSaveWmText = document.getElementById('btnSaveWmText');
+        let wmHoldTimer;
+        let isWmHolding = false;
+
+        const startWmHold = (e) => {
+            isWmHolding = false;
+            wmHoldTimer = setTimeout(() => {
+                isWmHolding = true;
+                let currentWM = localStorage.getItem('wmText') || 'TranslateKomik';
+                wmTextInput.value = currentWM;
+                wmTextModal.style.display = 'flex';
+                wmTextInput.focus();
+            }, 600); // 600ms hold
+        };
+
+        btnCloseWmModal.onclick = () => {
+            wmTextModal.style.display = 'none';
+        };
+
+        btnSaveWmText.onclick = () => {
+            const newWM = wmTextInput.value.trim();
+            if (newWM !== '') {
+                localStorage.setItem('wmText', newWM);
+                showToast('Teks Watermark berhasil disimpan!', 'success');
+            }
+            wmTextModal.style.display = 'none';
+        };
+
+        wmTextModal.onclick = (e) => {
+            if (e.target === wmTextModal) wmTextModal.style.display = 'none';
+        };
+
+        const endWmHold = () => {
+            clearTimeout(wmHoldTimer);
+        };
+
+        btnWMText.addEventListener('mousedown', startWmHold);
+        btnWMText.addEventListener('mouseup', endWmHold);
+        btnWMText.addEventListener('mouseleave', endWmHold);
+        btnWMText.addEventListener('touchstart', startWmHold, {passive: true});
+        btnWMText.addEventListener('touchend', endWmHold);
+        btnWMText.addEventListener('touchcancel', endWmHold);
+        btnWMText.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        btnWMText.addEventListener('click', (e) => {
+            if (isWmHolding) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            if (!artboard.querySelector('img')) {
+                showToast("Silakan upload atau buka gambar komik terlebih dahulu!", "error");
+                return;
+            }
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'comic-text';
+            textDiv.contentEditable = "true";
+            textDiv.innerText = localStorage.getItem('wmText') || 'TranslateKomik';
+            
+            // Atur ukuran kotak dan font standar yang pasti saat awal kali ditambah
+            textDiv.style.width = "200px";
+            textDiv.style.height = "50px";
+            textDiv.style.fontSize = "20px";
+
+            textDiv.style.top = "50px";
+            textDiv.style.left = "50px";
+
+            textDiv.style.backgroundColor = "transparent";
+            textDiv.style.border = "none";
+            textDiv.dataset.isWm = "true";
+            
+            attachTextEvents(textDiv);
+            
+            // Panggil updateDominantColor agar warnanya menyesuaikan background secara dinamis, sementara bgColor tetap transparan
+            artboard.appendChild(textDiv);
+            updateDominantColor(textDiv);
+            textDiv.focus(); 
+            saveState(); // Simpan riwayat setelah tambah
+        });
+
         async function fetchHistory() {
             try {
                 const response = await fetch('/get_history');
@@ -2236,6 +2561,7 @@
         let isHolding = false;
 
         document.querySelectorAll('button').forEach(btn => {
+            if (btn.id === 'btnWMText') return;
             const startHold = (e) => {
                 isHolding = false;
                 holdTimer = setTimeout(() => {
@@ -2347,21 +2673,33 @@
                     }
                 }
                 
-                                // Terapkan warna dominan sebagai background
-                                textEl.style.backgroundColor = `rgb(${domR}, ${domG}, ${domB})`;
-                                textEl.style.border = "none"; // Hilangkan garis putus-putus saat selesai edit
-                
-                                // Ubah warna font (hitam/putih) agar selalu kontras (terbaca) dengan backgroundnya
-                                const yiq = ((domR * 299) + (domG * 587) + (domB * 114)) / 1000;
-                                textEl.style.color = (yiq >= 128) ? 'black' : 'white';
-                
-                            } catch (err) {
-                                console.log("Tidak bisa deteksi warna gambar (Mungkin ada masalah CORS/Local Server): ", err);
-                                textEl.style.backgroundColor = 'white'; // Warna aman
-                                textEl.style.color = 'black';
-                                textEl.style.border = "none";
-                            }
-                        }
+                // Ubah warna font (hitam/putih) agar selalu kontras (terbaca) dengan backgroundnya
+                const yiq = ((domR * 299) + (domG * 587) + (domB * 114)) / 1000;
+                const textColor = (yiq >= 128) ? 'black' : 'white';
+
+                if (textEl.dataset.isWm === 'true') {
+                    textEl.style.backgroundColor = 'transparent';
+                    textEl.style.border = 'none';
+                    textEl.style.color = textColor;
+                } else {
+                    // Terapkan warna dominan sebagai background
+                    textEl.style.backgroundColor = `rgb(${domR}, ${domG}, ${domB})`;
+                    textEl.style.border = "none"; // Hilangkan garis putus-putus saat selesai edit
+                    textEl.style.color = textColor;
+                }
+            } catch (err) {
+                console.log("Tidak bisa deteksi warna gambar (Mungkin ada masalah CORS/Local Server): ", err);
+                if (textEl.dataset.isWm === 'true') {
+                    textEl.style.backgroundColor = 'transparent';
+                    textEl.style.color = 'white';
+                    textEl.style.border = "none";
+                } else {
+                    textEl.style.backgroundColor = 'white'; // Warna aman
+                    textEl.style.color = 'black';
+                    textEl.style.border = "none";
+                }
+            }
+        }
                 
         // ==== FITUR GALERI HASIL (MIRIP REVENSI.HTML) ====
         const btnOpenGallery = document.getElementById('btnOpenGallery');

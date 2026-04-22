@@ -281,6 +281,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 filename = data.get('filename')
                 target_lang = data.get('target_lang', 'Indonesian')
                 source_lang = data.get('source_lang', 'Auto')
+                selected_langs = data.get('selected_langs', ["Indonesian", "English", "Tagalog", "Spanish"])
                 
                 if not filename:
                     raise ValueError("Filename tidak ditemukan")
@@ -305,12 +306,14 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                         "detected_language": result.get("detected_language", "Auto")
                     }
                     
-                    langs = ["Indonesian", "English", "Tagalog"]
-                    extra_langs = [l for l in langs if l.lower() != target_lang.lower()]
+                    extra_langs = [l for l in selected_langs if l.lower() != target_lang.lower()]
                     
                     if extra_langs and main_translations:
                         langs_str = ", ".join(extra_langs)
-                        prompt = f"Translate the following comic text bubbles and title into ALL of these languages: {langs_str}.\n\nOriginal Title: {main_title}\nTexts:\n{json.dumps(main_translations, ensure_ascii=False)}\n\nReturn ONLY JSON format EXACTLY like this: {{\"translations\": {{\"English\": [\"text1\", \"text2\"], \"Tagalog\": [\"text1\", \"text2\"]}}, \"titles\": {{\"English\": \"Title\", \"Tagalog\": \"Title\"}}}}"
+                        json_translations_format = ", ".join([f'"{l}": ["text1", "text2"]' for l in extra_langs])
+                        json_titles_format = ", ".join([f'"{l}": "Title"' for l in extra_langs])
+                        
+                        prompt = f"Translate the following comic text bubbles and title into ALL of these languages: {langs_str}.\n\nOriginal Title: {main_title}\nTexts:\n{json.dumps(main_translations, ensure_ascii=False)}\n\nReturn ONLY JSON format EXACTLY like this: {{\"translations\": {{{json_translations_format}}}, \"titles\": {{{json_titles_format}}}}}"
                         
                         payload = {
                             "contents": [{"parts": [{"text": prompt}]}],
@@ -390,17 +393,33 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 
                 for el in data['elements']:
                     # 1. Gambar Background Box (Menutup teks asli)
-                    # Parsing warna 'rgb(r, g, b)'
-                    bg_color = el['bgColor'].replace('rgb(', '').replace(')', '').split(',')
-                    bg_tuple = (int(bg_color[0]), int(bg_color[1]), int(bg_color[2]))
+                    bg_color_str = el.get('bgColor', 'rgb(255, 255, 255)')
+                    bg_tuple = None
+                    if 'rgba(' in bg_color_str:
+                        parts = bg_color_str.replace('rgba(', '').replace(')', '').split(',')
+                        if len(parts) >= 4 and float(parts[3]) > 0:
+                            bg_tuple = (int(parts[0]), int(parts[1]), int(parts[2]))
+                    elif 'rgb(' in bg_color_str:
+                        parts = bg_color_str.replace('rgb(', '').replace(')', '').split(',')
+                        bg_tuple = (int(parts[0]), int(parts[1]), int(parts[2]))
+                    elif bg_color_str == 'transparent':
+                        pass
                     
                     x, y, w, h = el['x'], el['y'], el['w'], el['h']
-                    draw.rectangle([x, y, x + w, y + h], fill=bg_tuple)
+                    if bg_tuple:
+                        draw.rectangle([x, y, x + w, y + h], fill=bg_tuple)
                     
                     # 2. Gambar Teks Custom
                     # Parsing warna teks
-                    text_color = el['textColor'].replace('rgb(', '').replace(')', '').split(',')
-                    text_tuple = (int(text_color[0]), int(text_color[1]), int(text_color[2]))
+                    text_color_str = el.get('textColor', 'rgb(0, 0, 0)')
+                    if 'rgba(' in text_color_str:
+                        parts = text_color_str.replace('rgba(', '').replace(')', '').split(',')
+                        text_tuple = (int(parts[0]), int(parts[1]), int(parts[2]))
+                    elif 'rgb(' in text_color_str:
+                        parts = text_color_str.replace('rgb(', '').replace(')', '').split(',')
+                        text_tuple = (int(parts[0]), int(parts[1]), int(parts[2]))
+                    else:
+                        text_tuple = (0, 0, 0)
                     
                     # LOGIKA RENDER HD: Shrink-to-fit (Pastikan teks tidak nembus box HD)
                     current_font_size = int(el['fontSize'])
