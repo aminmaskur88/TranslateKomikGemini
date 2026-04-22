@@ -87,6 +87,11 @@
             /* Hapus max-width dan max-height 100% agar tidak responsif mengkerut secara otomatis */
             width: auto;
             height: auto;
+            /* Mencegah popup download gambar di HP saat ditekan lama */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            pointer-events: none; /* Biarkan artboard yang menerima event klik, bukan gambarnya */
         }
 
         /* Gaya Circular Progress untuk Folder */
@@ -2257,6 +2262,11 @@
                 updateFloatingDeleteBtn();
             }
         }, {passive: true});
+        
+        // Mencegah klik kanan atau long press (di HP) agar tidak memunculkan popup download gambar
+        artboard.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
 
         // ==== FITUR TAMBAH TEKS (MANUAL) ====
         document.getElementById('btnAddText').addEventListener('click', () => {
