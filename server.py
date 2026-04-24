@@ -755,6 +755,7 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
             offset = int(params.get('offset', [0])[0])
             
             folders = []
+            folder_counts = {}
             items = []
             total_items = 0
             
@@ -763,44 +764,66 @@ class KomikServerHandler(http.server.SimpleHTTPRequestHandler):
                 if os.path.exists(target_base) and os.path.isdir(target_base):
                     # List directory contents
                     try:
-                        entries = os.listdir(target_base)
-                        # Filter folders and files
-                        for entry in entries:
-                            full_entry_path = os.path.join(target_base, entry)
-                            if os.path.isdir(full_entry_path):
-                                if entry not in [".git", "__pycache__"]:
-                                    folders.append(entry)
-                            elif entry.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                                mtime = os.path.getmtime(full_entry_path)
-                                # URL safe path
-                                rel_path_from_lang = os.path.relpath(full_entry_path, os.path.join(OUTPUT_DIR, lang))
-                                items.append({
-                                    "filename": entry,
-                                    "url": f"/hasil/{lang}/{rel_path_from_lang}",
-                                    "mtime": mtime
-                                })
+                        all_entries = os.listdir(target_base)
+                        all_entries.sort() # Biar rapi
+                        
+                        for entry in all_entries:
+                            full_path = os.path.join(target_base, entry)
+                            if os.path.isdir(full_path):
+                                folder_info = {
+                                    "name": entry,
+                                    "count": 0,
+                                    "first_media_url": None,
+                                    "is_video": False
+                                }
+                                # Hitung jumlah file dan cari media pertama
+                                try:
+                                    f_list = sorted(os.listdir(full_path))
+                                    f_files = []
+                                    first_media = None
+                                    for f in f_list:
+                                        if os.path.isfile(os.path.join(full_path, f)):
+                                            f_files.append(f)
+                                            ext = f.lower()
+                                            if not first_media and ext.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm')):
+                                                first_media = f
+                                                if ext.endswith(('.mp4', '.webm')):
+                                                    folder_info["is_video"] = True
+                                    
+                                    folder_info["count"] = len(f_files)
+                                    if first_media:
+                                        folder_path = subfolder + '/' + entry if subfolder else entry
+                                        folder_info["first_media_url"] = f"/hasil/{lang}/{folder_path}/{first_media}"
+                                except Exception as e:
+                                    print(f"Error reading subfolder {entry}: {e}")
+                                
+                                folders.append(folder_info)
+                            elif os.path.isfile(full_path):
+                                ext = entry.lower()
+                                if ext.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm')):
+                                    items.append(entry)
+                        
+                        total_items = len(items)
+                        # Slice items for pagination
+                        paginated_items = items[offset : offset + limit]
+                        
+                        response_data = {
+                            "folders": folders,
+                            "items": [
+                                {
+                                    "filename": f,
+                                    "url": f"/hasil/{lang}/{subfolder + '/' if subfolder else ''}{f}"
+                                } for f in paginated_items
+                            ],
+                            "has_more": offset + limit < total_items
+                        }
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(response_data).encode())
+                        return
                     except Exception as e:
-                        print(f"Error reading dir: {e}")
-
-            # Sort items by newest first
-            items.sort(key=lambda x: x['mtime'], reverse=True)
-            folders.sort() # Folders alphabetical
-            
-            total_items = len(items)
-            paginated_items = items[offset : offset + limit] if limit > 0 else items[offset:]
-            
-            response_data = {
-                "folders": folders,
-                "items": paginated_items,
-                "total": total_items,
-                "has_more": (offset + len(paginated_items)) < total_items
-            }
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(response_data).encode('utf-8'))
-            return
+                        print(f"Error listing: {e}")
             
         # Panggil default handler untuk serve index.html, bahan/..., hasil/...
         return super().do_GET()

@@ -13,6 +13,7 @@
             --accent: #2563eb; --accent-hover: #1d4ed8; --item-hover: #f3f4f6;
             --item-active: #eef2ff; --canvas-bg: #ffffff;
             --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.2);
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
         }
         :root[data-theme="dark"] {
             --bg-app: #111111; --bg-panel: #1e1e1e; --bg-workspace: #161616;
@@ -20,6 +21,7 @@
             --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
             --item-active: #2a3a50; --canvas-bg: #e0e0e0;
             --shadow-canvas: 0 4px 20px rgba(0, 0, 0, 0.5);
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
         }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
@@ -28,6 +30,7 @@
                 --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
                 --item-active: #2a3a50; --canvas-bg: #e0e0e0;
                 --shadow-canvas: 0 4px 20px rgba(0, 0, 0, 0.5);
+                --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
             }
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -92,6 +95,193 @@
             -webkit-user-select: none;
             user-select: none;
             pointer-events: none; /* Biarkan artboard yang menerima event klik, bukan gambarnya */
+        }
+
+        /* ==== NEW GALLERY STYLES (EXACT CLONE) ==== */
+        .queue-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+            grid-auto-rows: max-content;
+            gap: 16px; 
+            width: 100%; 
+        }
+        
+        .queue-card { 
+            background-color: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 0.2s, box-shadow 0.2s; 
+            position: relative;
+        }
+        .queue-card:hover { box-shadow: var(--shadow-canvas); transform: translateY(-2px); }
+        .queue-card.uploaded { border-color: var(--success); opacity: 0.7; }
+        .queue-card.uploaded:hover { transform: none; box-shadow: none; }
+        
+        .drag-handle { 
+            position: absolute; 
+            top: 8px; right: 8px; 
+            background-color: rgba(0,0,0,0.6); 
+            color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 6px; 
+            padding: 6px;
+            cursor: pointer; 
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(4px);
+            touch-action: none;
+        }
+
+        .card-thumbnail-wrapper {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background: #111;
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-thumbnail-wrapper::after {
+            content: "Klik untuk lihat media";
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); color: white;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+            font-size: 12px; font-weight: bold; pointer-events: none;
+            z-index: 10;
+        }
+        .card-thumbnail-wrapper:hover::after { opacity: 1; }
+
+        .card-thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+        .card-thumbnail-wrapper:hover .card-thumbnail {
+            transform: scale(1.05);
+        }
+        .video-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+            z-index: 5;
+            border: 2px solid white;
+        }
+        .video-overlay span { font-size: 24px; }
+        .media-count-badge {
+            position: absolute;
+            bottom: 8px; right: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 10px; font-weight: bold;
+            padding: 4px 8px; border-radius: 12px;
+            z-index: 5; pointer-events: none;
+            display: flex; align-items: center; gap: 4px;
+        }
+        
+        .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .card-header { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px; width: fit-content; }
+        .badge-success { background-color: var(--success); color: white; }
+        .badge-primary { background-color: var(--accent); color: white; }
+        .badge-warning { background-color: var(--warning); color: white; }
+        .badge-danger { background-color: var(--danger); color: white; }
+        .badge-info { background-color: #0ea5e9; color: white; }
+        
+        .caption-preview { font-size: 11px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; flex: 1; }
+        
+        .card-actions { display: flex; gap: 6px; margin-top: auto; }
+        .card-actions button { 
+            flex: 1; padding: 8px 10px; font-size: 11px; font-weight: 600; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+
+        @media (max-width: 900px) {
+            .queue-container { 
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+                grid-auto-rows: max-content;
+                align-items: start;
+            }
+            .card-thumbnail-wrapper { height: 120px; }
+        }
+
+        /* Cinema Mode Modal */
+        #cinemaModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 20000;
+            flex-direction: column;
+            backdrop-filter: blur(8px);
+        }
+
+        #cinemaContent {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        #cinemaMedia {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 4px;
+        }
+
+        .cinema-btn {
+            position: absolute;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 2;
+        }
+
+        .cinema-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+        .cinema-btn:active { transform: scale(0.95); }
+
+        .cinema-prev { left: 20px; top: 50%; transform: translateY(-50%); }
+        .cinema-next { right: 20px; top: 50%; transform: translateY(-50%); }
+        .cinema-prev:hover, .cinema-next:hover { transform: translateY(-50%) scale(1.1); }
+        .cinema-prev:active, .cinema-next:active { transform: translateY(-50%) scale(0.95); }
+        .cinema-close { top: 20px; right: 20px; width: 40px; height: 40px; }
+
+        .finished-folder {
+            filter: grayscale(80%);
+            opacity: 0.6;
+        }
+
+        @media (max-width: 900px) {
+            #galleryContent { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding: 10px; }
+            .card-thumbnail-wrapper { height: 120px; }
+            .cinema-btn { width: 40px; height: 40px; }
+            .cinema-prev { left: 10px; }
+            .cinema-next { right: 10px; }
         }
 
         /* Gaya Circular Progress untuk Folder */
@@ -538,12 +728,23 @@
             </div>
             <button class="btn-icon" id="btnCloseGallery" style="background:var(--item-hover);"><span class="material-icons-round">close</span></button>
         </header>
-        <div id="galleryContent" style="flex:1; overflow-y:auto; padding:15px; display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:20px; align-content:start;">
+        <div id="galleryContent" class="queue-container" style="flex:1; overflow-y:auto; padding:20px; background-color:var(--bg-workspace); align-content:start;">
             <!-- Kartu dimuat di sini -->
         </div>
         <div id="galleryFooter" style="padding:15px; display:flex; justify-content:center; border-top:1px solid var(--border-color); background:var(--bg-panel); flex-shrink:0;">
             <button id="btnLoadMore" class="btn-outline" style="width:200px; font-weight:700; display:none; height:44px;">Muat Lebih Banyak</button>
         </div>
+    </div>
+
+    <!-- CINEMA MODE MODAL -->
+    <div id="cinemaModal">
+        <button class="cinema-btn cinema-close" id="btnCinemaClose"><span class="material-icons-round">close</span></button>
+        <button class="cinema-btn cinema-prev" id="btnCinemaPrev"><span class="material-icons-round">navigate_before</span></button>
+        <div id="cinemaContent">
+            <!-- Media (Img/Video) injected here -->
+        </div>
+        <button class="cinema-btn cinema-next" id="btnCinemaNext"><span class="material-icons-round">navigate_next</span></button>
+        <div id="cinemaCaption" style="position:absolute; bottom:20px; color:white; font-size:14px; background:rgba(0,0,0,0.5); padding:5px 15px; border-radius:20px; backdrop-filter:blur(4px);">Caption</div>
     </div>
 
     <!-- SCRIPT LOGIC -->
@@ -2720,10 +2921,21 @@
         const galleryTitle = document.getElementById('galleryTitle');
         const btnLoadMore = document.getElementById('btnLoadMore');
 
+        // Cinema Mode State
+        const cinemaModal = document.getElementById('cinemaModal');
+        const cinemaContent = document.getElementById('cinemaContent');
+        const cinemaCaption = document.getElementById('cinemaCaption');
+        const btnCinemaClose = document.getElementById('btnCinemaClose');
+        const btnCinemaPrev = document.getElementById('btnCinemaPrev');
+        const btnCinemaNext = document.getElementById('btnCinemaNext');
+        
         let galleryOffset = 0;
         const galleryLimit = 12;
         let selectedGalleryLang = '';
         let currentGallerySubfolder = '';
+        
+        let galleryItemsList = []; // Store current page items for navigation
+        let currentCinemaIndex = -1;
 
         btnOpenGallery.onclick = () => {
             galleryOverlay.style.display = 'flex';
@@ -2734,12 +2946,54 @@
             galleryOverlay.style.display = 'none';
         };
 
+        // Cinema Mode Actions
+        btnCinemaClose.onclick = () => {
+            cinemaModal.style.display = 'none';
+            cinemaContent.innerHTML = ''; // Stop video
+        };
+
+        btnCinemaPrev.onclick = () => {
+            if (currentCinemaIndex > 0) openCinema(currentCinemaIndex - 1);
+        };
+
+        btnCinemaNext.onclick = () => {
+            if (currentCinemaIndex < galleryItemsList.length - 1) openCinema(currentCinemaIndex + 1);
+        };
+
+        function openCinema(index) {
+            currentCinemaIndex = index;
+            const item = galleryItemsList[index];
+            cinemaContent.innerHTML = '';
+            cinemaCaption.innerText = item.filename;
+            
+            const isVideo = item.url.toLowerCase().endsWith('.mp4') || item.url.toLowerCase().endsWith('.webm');
+            
+            if (isVideo) {
+                const video = document.createElement('video');
+                video.src = item.url;
+                video.id = 'cinemaMedia';
+                video.controls = true;
+                video.autoplay = true;
+                cinemaContent.appendChild(video);
+            } else {
+                const img = document.createElement('img');
+                img.src = item.url;
+                img.id = 'cinemaMedia';
+                cinemaContent.appendChild(img);
+            }
+            
+            cinemaModal.style.display = 'flex';
+            btnCinemaPrev.style.visibility = index > 0 ? 'visible' : 'hidden';
+            btnCinemaNext.style.visibility = index < galleryItemsList.length - 1 ? 'visible' : 'hidden';
+        }
+
         function openLangView() {
             selectedGalleryLang = '';
             currentGallerySubfolder = '';
             btnBackToLangs.style.display = 'none';
             btnLoadMore.style.display = 'none';
             galleryTitle.innerText = 'Pilih Bahasa Hasil';
+            galleryContent.className = 'queue-container';
             loadGalleryLangs();
         }
 
@@ -2758,10 +3012,17 @@
 
                 langs.forEach(lang => {
                     const card = document.createElement('div');
-                    card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:10px;';
-                    card.onmouseover = () => card.style.background = 'var(--item-hover)';
-                    card.onmouseout = () => card.style.background = 'var(--bg-panel)';
-                    card.innerHTML = `<span style="font-size:48px;">${getFlagIcon(lang)}</span><span style="font-size:13px; font-weight:700; color:var(--text-main);">${lang}</span>`;
+                    card.className = 'queue-card';
+                    card.style.cssText = 'padding:20px; text-align:center; align-items:center; cursor:pointer; gap:12px;';
+                    card.innerHTML = `
+                        <div style="font-size:64px; margin-bottom:10px;">${getFlagIcon(lang)}</div>
+                        <div class="card-header" style="justify-content:center;">
+                            <span style="font-size:15px; font-weight:700;">${lang}</span>
+                        </div>
+                        <div class="caption-preview" style="text-align:center;">
+                            Klik untuk melihat hasil export bahasa ${lang}.
+                        </div>
+                    `;
                     card.onclick = () => {
                         selectedGalleryLang = lang;
                         currentGallerySubfolder = '';
@@ -2780,6 +3041,7 @@
         function openItemView() {
             galleryOffset = 0;
             btnBackToLangs.style.display = 'flex';
+            galleryContent.className = 'queue-container';
             btnBackToLangs.onclick = () => {
                 if (currentGallerySubfolder === '') {
                     openLangView();
@@ -2806,16 +3068,78 @@
                 const res = await fetch(`/list-hasil?lang=${encodeURIComponent(selectedGalleryLang)}&subfolder=${encodeURIComponent(currentGallerySubfolder)}&limit=${galleryLimit}&offset=${galleryOffset}`);
                 const data = await res.json();
                 
-                // Hanya tampilkan folder jika kita di halaman pertama (offset 0)
+                if (galleryOffset === 0) {
+                    galleryContent.innerHTML = '';
+                    galleryItemsList = []; // Reset navigation list
+                }
+
+                // Render Folders
                 if (galleryOffset === 0 && data.folders && data.folders.length > 0) {
-                    data.folders.forEach(folderName => {
+                    data.folders.forEach(folderData => {
                         const card = document.createElement('div');
-                        card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; padding:15px; text-align:center; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:8px;';
-                        card.onmouseover = () => card.style.background = 'var(--item-hover)';
-                        card.onmouseout = () => card.style.background = 'var(--bg-panel)';
-                        card.innerHTML = `<span class="material-icons-round" style="font-size:48px; color:#f59e0b;">folder</span><span style="font-size:12px; font-weight:700; color:var(--text-main); word-break:break-word; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${folderName}</span>`;
+                        card.className = 'queue-card';
+                        
+                        const isFinished = folderData.name.toLowerCase().includes('selesai') || folderData.name.toLowerCase().includes('done');
+                        if (isFinished) card.classList.add('uploaded');
+
+                        let dragHandleHTML = '';
+                        if (isFinished) {
+                            dragHandleHTML = `<div class="drag-handle" style="cursor:not-allowed; opacity:0.3;"><span class="material-icons-round" style="font-size:16px;">lock</span></div>`;
+                        } else {
+                            dragHandleHTML = `<div class="drag-handle" style="cursor:pointer;" title="Buka Folder"><span class="material-icons-round" style="font-size:16px;">open_in_new</span></div>`;
+                        }
+
+                        let thumbnailHTML = `<span class="material-icons-round" style="font-size:64px; color:#444;">image_not_supported</span>`;
+                        if (folderData.first_media_url) {
+                            thumbnailHTML = `
+                                <img src="${folderData.first_media_url}" loading="lazy" class="card-thumbnail" style="${isFinished ? 'filter: grayscale(80%); opacity:0.6;' : ''}">
+                                ${folderData.is_video ? '<div class="video-overlay"><span class="material-icons-round">play_arrow</span></div>' : ''}
+                            `;
+                        }
+                        
+                        let badgeHTML = `<div class="media-count-badge">
+                                            <span class="material-icons-round" style="font-size:12px;">collections</span> ${folderData.count || 0}
+                                         </div>`;
+                                         
+                        if (isFinished) {
+                            badgeHTML += `<div style="position:absolute; background:var(--success); color:white; padding:4px 10px; font-size:12px; font-weight:bold; border-radius:20px; z-index:10;"><span class="material-icons-round" style="font-size:14px; vertical-align:middle;">check_circle</span> SELESAI</div>`;
+                        }
+
+                        card.innerHTML = `
+                            ${dragHandleHTML}
+                            <div class="card-thumbnail-wrapper" onclick="event.stopPropagation(); currentGallerySubfolder = currentGallerySubfolder ? currentGallerySubfolder + '/' + '${folderData.name}' : '${folderData.name}'; openItemView();">
+                                ${thumbnailHTML}
+                                ${badgeHTML}
+                            </div>
+                            <div class="card-body">
+                                <div class="card-header" title="${folderData.name}" style="${isFinished ? 'text-decoration: line-through; opacity:0.7;' : ''}">
+                                    <span class="material-icons-round" style="color:${isFinished ? 'var(--success)' : 'var(--warning)'}; font-size:16px;">
+                                        ${isFinished ? 'check_circle' : 'folder'}
+                                    </span>
+                                    <span>${folderData.name}</span>
+                                </div>
+                                
+                                <span class="badge ${folderData.is_video ? 'badge-danger' : 'badge-info'}">
+                                    <span class="material-icons-round" style="font-size:10px;">${folderData.is_video ? 'movie' : 'image'}</span> 
+                                    ${folderData.is_video ? 'Video' : 'Foto'}
+                                </span>
+                                
+                                <div class="caption-preview" title="${folderData.name}">
+                                    Hasil export komik untuk ${folderData.name} (${selectedGalleryLang}).
+                                </div>
+                                
+                                <div class="card-actions">
+                                    <button class="btn-outline" onclick="event.stopPropagation(); currentGallerySubfolder = currentGallerySubfolder ? currentGallerySubfolder + '/' + '${folderData.name}' : '${folderData.name}'; openItemView();">
+                                        <span class="material-icons-round" style="font-size:14px;">folder_open</span> Buka
+                                    </button>
+                                    <button class="btn-danger" onclick="event.stopPropagation(); alert('Hapus folder ini di workspace.')">
+                                        <span class="material-icons-round" style="font-size:14px;">delete</span> Hapus
+                                    </button>
+                                </div>
+                            </div>`;
+                        
                         card.onclick = () => {
-                            currentGallerySubfolder = currentGallerySubfolder ? `${currentGallerySubfolder}/${folderName}` : folderName;
+                            currentGallerySubfolder = currentGallerySubfolder ? `${currentGallerySubfolder}/${folderData.name}` : folderData.name;
                             openItemView();
                         };
                         galleryContent.appendChild(card);
@@ -2823,26 +3147,55 @@
                 }
 
                 if (data.items.length === 0 && galleryOffset === 0 && (!data.folders || data.folders.length === 0)) {
-                    galleryContent.innerHTML = '<div style="grid-column:1/-1; padding:50px; text-align:center; color:var(--text-muted);"><p>Folder ini kosong.</p></div>';
+                    galleryContent.innerHTML = '<div style="grid-column:1/-1; padding:50px; text-align:center; color:var(--text-muted);"><span class="material-icons-round" style="font-size:48px; opacity:0.2;">folder_open</span><p>Folder ini kosong.</p></div>';
                     btnLoadMore.style.display = 'none';
                     return;
                 }
 
-                data.items.forEach(item => {
+                // Render Files
+                data.items.forEach((item, idx) => {
+                    const globalIdx = galleryItemsList.length;
+                    galleryItemsList.push(item);
+
                     const card = document.createElement('div');
-                    card.style.cssText = 'background:var(--bg-panel); border:1px solid var(--border-color); border-radius:12px; overflow:hidden; position:relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; display:flex; flex-direction:column;';
+                    card.className = 'queue-card';
                     
+                    const isVideo = item.url.toLowerCase().endsWith('.mp4') || item.url.toLowerCase().endsWith('.webm');
+
                     card.innerHTML = `
-                        <div style="width: 100%; aspect-ratio: 1/1; position: relative; background: #eee; overflow: hidden;">
-                            <img src="${item.url}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        <div class="drag-handle" title="Lihat Media"><span class="material-icons-round" style="font-size:16px;">zoom_out_map</span></div>
+                        <div class="card-thumbnail-wrapper" style="height:180px;" onclick="event.stopPropagation(); openCinema(${globalIdx})">
+                            <img src="${item.url}" class="card-thumbnail" loading="lazy">
+                            ${isVideo ? '<div class="video-overlay"><span class="material-icons-round">play_arrow</span></div>' : ''}
                         </div>
-                        <div style="padding:10px; background:var(--bg-panel); display:flex; flex-direction:column; gap:5px;">
-                            <span style="font-size:11px; font-weight:700; color:var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.filename}">${item.filename}</span>
-                            <div style="display:flex; gap:5px; margin-top:5px;">
-                                <button class="btn-primary" style="flex:1; padding:6px; font-size:10px;" onclick="window.open('${item.url}', '_blank')"><span class="material-icons-round" style="font-size:14px;">open_in_new</span> Lihat</button>
+                        <div class="card-body">
+                            <div class="card-header" title="${item.filename}">
+                                <span class="material-icons-round" style="color:var(--accent); font-size:16px;">
+                                    ${isVideo ? 'movie' : 'image'}
+                                </span>
+                                <span>${item.filename}</span>
+                            </div>
+                            
+                            <span class="badge ${isVideo ? 'badge-danger' : 'badge-info'}">
+                                <span class="material-icons-round" style="font-size:10px;">${isVideo ? 'movie' : 'image'}</span> 
+                                ${isVideo ? 'Video' : 'Foto'}
+                            </span>
+
+                            <div class="caption-preview" title="${item.filename}">
+                                ${item.filename}
+                            </div>
+
+                            <div class="card-actions">
+                                <button class="btn-outline" onclick="event.stopPropagation(); window.open('${item.url}', '_blank')">
+                                    <span class="material-icons-round" style="font-size:14px;">open_in_new</span> Buka
+                                </button>
+                                <button class="btn-primary" onclick="event.stopPropagation(); openCinema(${globalIdx})">
+                                    <span class="material-icons-round" style="font-size:14px;">fullscreen</span> Zoom
+                                </button>
                             </div>
                         </div>`;
                     
+                    card.onclick = () => openCinema(globalIdx);
                     galleryContent.appendChild(card);
                 });
 
